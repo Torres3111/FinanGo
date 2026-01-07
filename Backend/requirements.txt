@@ -1,0 +1,7 @@
+flask
+flask-sqlalchemy
+psycopg2-binary
+werkzeug
+Flask-Cors
+requests
+Flask-JWT-Extended
