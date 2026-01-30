@@ -1,8 +1,60 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from "react-native";
 import { router } from "expo-router";
-import login from "./login";
+import { useState } from "react";
+import API_URL from "../../config/api";
 
 export default function Cadastro() {
+  const [nome, setNome] = useState("");
+  const [email, setEmail] = useState("");
+  const [salario_mensal, setSalario] = useState("");
+  const [senha_hash, setSenha] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleCadastro() {
+    if (!nome || !email || !salario_mensal || !senha_hash) {
+      Alert.alert("Erro", "Preencha todos os campos");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(`${API_URL}/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nome,
+          email,
+          senha_hash,
+          salario_mensal: Number(salario_mensal),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert("Erro", data.error || "Erro ao cadastrar");
+        return;
+      }
+
+      Alert.alert("Sucesso", "Conta criada com sucesso!");
+      router.replace("../auth/login");
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível conectar ao servidor");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Criar conta</Text>
@@ -10,34 +62,47 @@ export default function Cadastro() {
       <Text style={styles.label}>Nome de usuário</Text>
       <TextInput
         style={styles.input}
+        value={nome}
+        onChangeText={setNome}
         placeholder="Digite seu nome"
       />
 
       <Text style={styles.label}>E-mail</Text>
       <TextInput
         style={styles.input}
+        value={email}
+        onChangeText={setEmail}
         placeholder="Digite seu e-mail"
         keyboardType="email-address"
         autoCapitalize="none"
       />
 
-      <Text style={styles.label}>Telefone</Text>
+      <Text style={styles.label}>Salário mensal</Text>
       <TextInput
         style={styles.input}
-        placeholder="Digite seu telefone"
-        keyboardType="phone-pad"
+        value={salario_mensal}
+        onChangeText={setSalario}
+        placeholder="Ex: 3500"
+        keyboardType="numeric"
       />
 
       <Text style={styles.label}>Senha</Text>
       <TextInput
         style={styles.input}
+        value={senha_hash}
+        onChangeText={setSenha}
         placeholder="Digite sua senha"
         secureTextEntry
       />
 
-
-      <TouchableOpacity style={styles.primaryButton}>
-        <Text style={styles.primaryButtonText}>Cadastrar</Text>
+      <TouchableOpacity
+        style={styles.primaryButton}
+        onPress={handleCadastro}
+        disabled={loading}
+      >
+        <Text style={styles.primaryButtonText}>
+          {loading ? "Cadastrando..." : "Cadastrar"}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => router.push("../auth/login")}>
@@ -46,6 +111,7 @@ export default function Cadastro() {
     </View>
   );
 }
+
 
 const styles = StyleSheet.create({
   container: {
@@ -96,3 +162,4 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 });
+
