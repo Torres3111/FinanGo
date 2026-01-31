@@ -9,7 +9,7 @@ class Usuario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(150), unique=True, nullable=False)
-    senha_hash = db.Column(db.Text, nullable=False)
+    senha_hash = db.Column(db.String(50), nullable=False)
     salario_mensal = db.Column(db.Numeric(10, 2), nullable=False)
 
     contas_fixas = db.relationship(
@@ -25,12 +25,12 @@ class Usuario(db.Model):
         "HistoricoFatura", backref="usuario", cascade="all, delete-orphan"
     )
 
-    # Segurança
-    def set_password(self, password):
-        self.senha_hash = generate_password_hash(password)
+    # # Segurança
+    # def set_password(self, password):
+    #     self.senha_hash = generate_password_hash(password)
 
-    def check_password(self, password):
-        return check_password_hash(self.senha_hash, password)
+    # def check_password(self, password):
+    #     return check_password_hash(self.senha_hash, password)
 
 
 class ContaFixa(db.Model):
