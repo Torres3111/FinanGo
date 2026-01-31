@@ -41,13 +41,13 @@ def register():
 def login():
     data = request.get_json()
 
-    email = data.get("email")
+    nome = data.get("nome")
     senha_hash = data.get("senha_hash")
 
-    if not email or not senha_hash:
-        return jsonify({"error": "Dados obrigatórios ausentes"}), 400
+    if not nome or not senha_hash:
+        return jsonify({"error": "Dados obrigatórios ausentes. Yoooo"}), 400
 
-    usuario = Usuario.query.filter_by(email=email).first()
+    usuario = Usuario.query.filter_by(nome=nome).first()
 
     if not usuario or not usuario.check_password(senha_hash):
         return jsonify({"error": "Credenciais inválidas"}), 401

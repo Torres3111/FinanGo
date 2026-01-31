@@ -1,1 +1,5 @@
 Backend/.env
+Backend/app/__pycache__/__init__.cpython-311.pyc
+Backend/app/__pycache__/extensions.cpython-311.pyc
+Backend/app/__pycache__/models.cpython-311.pyc
+Backend/app/__pycache__/routes.cpython-311.pyc

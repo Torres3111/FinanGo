@@ -10,6 +10,8 @@ import { router } from "expo-router";
 import { useState } from "react";
 import API_URL from "../../config/api";
 
+
+///////////////////////////// FUNÇÃO CADASTRO /////////////////////////////
 export default function Cadastro() {
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
@@ -26,7 +28,7 @@ export default function Cadastro() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/auth/register`, {
+      const response = await fetch(`${API_URL}/auth/register`, { // ROTA DO CADASTRO
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -38,6 +40,7 @@ export default function Cadastro() {
           salario_mensal: Number(salario_mensal),
         }),
       });
+      console.log(response);
 
       const data = await response.json();
 
@@ -55,6 +58,7 @@ export default function Cadastro() {
     }
   }
 
+///////////////////////////// FUNÇÃO CADASTRO /////////////////////////////
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Criar conta</Text>

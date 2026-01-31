@@ -1,7 +1,58 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  Alert,
+} from "react-native";
 import { router } from "expo-router";
+import { useState } from "react";
+import API_URL from "../../config/api";
 
+///////////////////////////// FUNÇÃO LOGIN /////////////////////////////
 export default function Login() {
+  const [nome, setNome] = useState("");
+  const [senha_hash, setSenha_hash] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogin() {
+    if (!nome || !senha_hash) {
+      Alert.alert("Erro", "Preencha todos os campos");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const response = await fetch(`${API_URL}/auth/login`, { // ROTA DO LOGIN
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nome,
+          senha_hash,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert("Erro", data.error || "Erro ao entrar");
+        return;
+      }
+
+      Alert.alert("Sucesso", "Login realizado com sucesso!");
+      router.replace("../auth/dashboard-financeiro"); // dashboard futuramente
+    } catch (error) {
+      Alert.alert("Erro", "Não foi possível conectar ao servidor");
+    } finally {
+      setLoading(false);
+    }
+  }
+  ///////////////////////////// FUNÇÃO LOGIN /////////////////////////////
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Entrar</Text>
@@ -11,6 +62,8 @@ export default function Login() {
         style={styles.input}
         placeholder="Digite seu nome de usuário"
         autoCapitalize="none"
+        value={nome}
+        onChangeText={setNome}
       />
 
       <Text style={styles.label}>Senha</Text>
@@ -18,10 +71,18 @@ export default function Login() {
         style={styles.input}
         placeholder="Digite sua senha"
         secureTextEntry
+        value={senha_hash}
+        onChangeText={setSenha_hash}
       />
 
-      <TouchableOpacity style={styles.primaryButton}>
-        <Text style={styles.primaryButtonText}>Entrar</Text>
+      <TouchableOpacity
+        style={styles.primaryButton}
+        onPress={handleLogin}
+        disabled={loading}
+      >
+        <Text style={styles.primaryButtonText}>
+          {loading ? "Entrando..." : "Entrar"}
+        </Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => router.push("../auth/cadastro")}>
