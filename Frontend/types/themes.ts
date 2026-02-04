@@ -1,0 +1,34 @@
+
+export const lightTheme = {
+  container: {
+    backgroundColor: "#f9fafb",
+  },
+  card: {
+    backgroundColor: "#ffffff",
+  },
+  text: {
+    color: "#111827",
+  },
+  subText: {
+    color: "#6b7280",
+  },
+  icon: "#10b981",
+};
+
+export const darkTheme = {
+  container: {
+    backgroundColor: "#020617",
+  },
+  card: {
+    backgroundColor: "#020617",
+    borderWidth: 1,
+    borderColor: "#020617",
+  },
+  text: {
+    color: "#f9fafb",
+  },
+  subText: {
+    color: "#94a3b8",
+  },
+  icon: "#34d399",
+};

@@ -9,6 +9,7 @@ import {
 import { router } from "expo-router";
 import { useState } from "react";
 import API_URL from "../../config/api";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 
 ///////////////////////////// FUNÇÃO CADASTRO /////////////////////////////
@@ -60,7 +61,7 @@ export default function Cadastro() {
 
 ///////////////////////////// FUNÇÃO CADASTRO /////////////////////////////
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Criar conta</Text>
 
       <Text style={styles.label}>Nome de usuário</Text>
@@ -112,7 +113,7 @@ export default function Cadastro() {
       <TouchableOpacity onPress={() => router.push("../auth/login")}>
         <Text style={styles.linkText}>Já tenho uma conta</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 

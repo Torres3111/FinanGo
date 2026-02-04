@@ -9,6 +9,8 @@ import {
 import { router } from "expo-router";
 import { useState } from "react";
 import API_URL from "../../config/api";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 ///////////////////////////// FUNÇÃO LOGIN /////////////////////////////
 export default function Login() {
@@ -37,6 +39,7 @@ export default function Login() {
       });
 
       const data = await response.json();
+      
 
       if (!response.ok) {
         Alert.alert("Erro", data.error || "Erro ao entrar");
@@ -44,6 +47,7 @@ export default function Login() {
       }
 
       Alert.alert("Sucesso", "Login realizado com sucesso!");
+      await AsyncStorage.setItem("id", data.usuario.id.toString()); // Armazena o ID do usuário
       router.replace("../auth/dashboard-financeiro"); // dashboard futuramente
     } catch (error) {
       Alert.alert("Erro", "Não foi possível conectar ao servidor");
@@ -54,7 +58,7 @@ export default function Login() {
   ///////////////////////////// FUNÇÃO LOGIN /////////////////////////////
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.title}>Entrar</Text>
 
       <Text style={styles.label}>Nome de usuário</Text>
@@ -88,7 +92,7 @@ export default function Login() {
       <TouchableOpacity onPress={() => router.push("../auth/cadastro")}>
         <Text style={styles.linkText}>Criar uma conta</Text>
       </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
 }
 

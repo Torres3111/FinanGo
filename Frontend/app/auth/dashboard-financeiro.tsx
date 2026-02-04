@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -12,17 +12,17 @@ import {
   Wallet,
   CreditCard,
   Receipt,
-  PieChart,
-  Target,
-  Settings,
   Moon,
 } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-type MenuItem = {
-  id: string;
-  label: string;
-  icon: any;
-};
+import API_URL from "@/config/api";
+import MenuCard from "@/components/ui/menuCard";
+import { menuItems } from "@/types/menu";
+import { AppRoute } from "@/types/routes";
+import { useTheme } from "@/types/themecontext";
 
 type Card = {
   title: string;
@@ -33,21 +33,45 @@ type Card = {
 };
 
 export default function DashboardFinanceiro() {
-  const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const { theme, toggleTheme } = useTheme();
 
-  const menuItems: MenuItem[] = [
-    { id: "dashboard", label: "Inicio", icon: PieChart },
-    { id: "contas", label: "Contas", icon: Receipt },
-    { id: "parcelamentos", label: "Parcelas", icon: CreditCard },
-    { id: "metas", label: "Metas", icon: Target },
-    { id: "config", label: "Config", icon: Settings },
-  ];
+  const [activeTab, setActiveTab] =
+    useState<AppRoute>("/dashboard-financeiro");
+  const [salarioMensal, setSalarioMensal] = useState(0);
+
+  useEffect(() => {
+    async function carregarSalario() {
+      try {
+        const userId = await AsyncStorage.getItem("id");
+        if (!userId) return;
+
+        const response = await fetch(
+          `${API_URL}/dashboard/salariomensal?user_id=${userId}`
+        );
+
+        const data = await response.json();
+        if (response.ok) {
+          setSalarioMensal(data.salario_mensal);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar salário:", e);
+      }
+    }
+
+    carregarSalario();
+  }, []);
+
+  function formatarMoeda(valor: number) {
+    return valor.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  }
 
   const cards: Card[] = [
     {
       title: "Salário Mensal",
-      value: "R$ 0,00",
+      value: formatarMoeda(salarioMensal),
       icon: DollarSign,
     },
     {
@@ -74,32 +98,21 @@ export default function DashboardFinanceiro() {
       subtitle: "0 ativos",
       icon: CreditCard,
     },
-    {
-      title: "Gastos do Mês",
-      value: "R$ 0,00",
-      subtitle: "0 transações",
-      icon: Wallet,
-    },
   ];
 
-  const theme = darkMode ? dark : light;
-
   return (
-    <View style={[styles.container, theme.container]}>
+    <SafeAreaView style={[styles.container, theme.container]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, theme.text]}>Finanças</Text>
 
-        <TouchableOpacity
-          style={styles.darkButton}
-          onPress={() => setDarkMode((prev) => !prev)}
-        >
-          <Moon size={20} color={darkMode ? "#facc15" : "#374151"} />
+        <TouchableOpacity onPress={toggleTheme}>
+          <Moon size={20} color={theme.text.color} />
         </TouchableOpacity>
       </View>
 
-      {/* Cards */}
-      <ScrollView contentContainerStyle={styles.cardsContainer}>
+      {/* Conteúdo */}
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.grid}>
           {cards.map((card, index) => {
             const Icon = card.icon;
@@ -125,7 +138,9 @@ export default function DashboardFinanceiro() {
                 <Text
                   style={[
                     styles.cardValue,
-                    card.highlight ? styles.highlightText : theme.text,
+                    card.highlight
+                      ? styles.highlightText
+                      : theme.text,
                   ]}
                 >
                   {card.value}
@@ -140,133 +155,73 @@ export default function DashboardFinanceiro() {
         </View>
       </ScrollView>
 
-      {/* Bottom Menu */}
-      <View style={[styles.bottomMenu, theme.menu]}>
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeTab === item.id;
-
-          return (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.menuItem}
-              onPress={() => setActiveTab(item.id)}
-            >
-              <Icon size={22} color={isActive ? "#10b981" : theme.icon} />
-              <Text
-                style={[
-                  styles.menuLabel,
-                  { color: isActive ? "#10b981" : theme.subText.color },
-                ]}
-              >
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      {/* Menu inferior */}
+      <View style={styles.bottomMenu}>
+        <MenuCard
+          items={menuItems}
+          active={activeTab}
+          //theme={theme}
+          onNavigate={(route) => {
+            setActiveTab(route);
+            router.push(`../auth${route}`);
+          }}
+        />
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
-
-/* ===== Styles ===== */
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-
   header: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "700",
   },
-
-  darkButton: {
-    padding: 8,
-    borderRadius: 8,
-  },
-
-  cardsContainer: {
+  content: {
     paddingHorizontal: 16,
-    paddingBottom: 80,
+    paddingBottom: 100, // espaço para o menu inferior
   },
-
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
   },
-
   card: {
     width: "48%",
     borderRadius: 16,
     padding: 16,
     marginBottom: 16,
   },
-
-  cardTitle: {
-    marginTop: 8,
-    fontSize: 13,
+  highlightCard: {
+    borderWidth: 1,
+    borderColor: "#16a34a",
   },
-
+  cardTitle: {
+    fontSize: 12,
+    marginTop: 8,
+  },
   cardValue: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "700",
     marginTop: 4,
   },
-
-  highlightCard: {
-    borderWidth: 1,
-    borderColor: "#22c55e",
-  },
-
   highlightText: {
     color: "#16a34a",
   },
-
   bottomMenu: {
     position: "absolute",
-    bottom: 50,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 10,
-  },
-
-  menuItem: {
-    alignItems: "center",
-  },
-
-  menuLabel: {
-    fontSize: 12,
-    marginTop: 4,
+    bottom: 8,
+    left: 16,
+    right: 16,
   },
 });
-
-/* ===== Themes ===== */
-
-const light = {
-  container: { backgroundColor: "#f9fafb" },
-  card: { backgroundColor: "#ffffff" },
-  menu: { backgroundColor: "#ffffff" },
-  text: { color: "#111827" },
-  subText: { color: "#6b7280" },
-  icon: "#374151",
-};
-
-const dark = {
-  container: { backgroundColor: "#111827" },
-  card: { backgroundColor: "#1f2933" },
-  menu: { backgroundColor: "#1f2933" },
-  text: { color: "#f9fafb" },
-  subText: { color: "#9ca3af" },
-  icon: "#d1d5db",
-};

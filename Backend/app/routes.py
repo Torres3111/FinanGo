@@ -61,3 +61,28 @@ def login():
         }
     }), 200
 ############################## LOGIN DE USUÁRIO ##############################
+
+############################## BUSCA SALÁRIO PARA DASHBOARD ##############################
+dashboard_bp = Blueprint(
+    "dashboard",
+    __name__,
+    url_prefix="/dashboard"
+)
+
+@dashboard_bp.route("/salariomensal", methods=["GET"])
+def get_salario_mensal():
+    user_id = request.args.get("user_id", type=int)
+
+    if not user_id:
+        return jsonify({"error": "ID do usuário é obrigatório"}), 400
+
+    usuario = Usuario.query.get(user_id)
+
+    if not usuario:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+
+    return jsonify({
+        "salario_mensal": float(usuario.salario_mensal or 0)
+    }), 200
+
+############################## BUSCA SALÁRIO PARA DASHBOARD ##############################

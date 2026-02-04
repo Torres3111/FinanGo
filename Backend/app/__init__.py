@@ -12,7 +12,10 @@ def create_app():
 
     db.init_app(app)
     from app.routes import auth_bp
-    app.register_blueprint(auth_bp)
+    app.register_blueprint(auth_bp) # Resgistro de Rotas de Autenticação
+    
+    from app.routes import dashboard_bp 
+    app.register_blueprint(dashboard_bp) # Resgistro de Rotas do Dashboard
     
     with app.app_context():
         from . import models

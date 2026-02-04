@@ -25,12 +25,12 @@ class Usuario(db.Model):
         "HistoricoFatura", backref="usuario", cascade="all, delete-orphan"
     )
 
-    # # Segurança
-    # def set_password(self, password):
-    #     self.senha_hash = generate_password_hash(password)
+     # Segurança
+    def set_password(self, password):
+         self.senha_hash = generate_password_hash(password)
 
-    # def check_password(self, password):
-    #     return check_password_hash(self.senha_hash, password)
+    def check_password(self, password):
+         return check_password_hash(self.senha_hash, password)
 
 
 class ContaFixa(db.Model):
