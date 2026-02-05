@@ -12,6 +12,13 @@ export const lightTheme = {
   subText: {
     color: "#6b7280",
   },
+  input: {
+  backgroundColor: "#f3f4f6",
+  color: "#111827",
+},
+primary: {
+  color: "#07be26",
+},
   icon: "#10b981",
 };
 
@@ -30,5 +37,12 @@ export const darkTheme = {
   subText: {
     color: "#94a3b8",
   },
+  input: {
+  backgroundColor: "#020617",
+  color: "#f9fafb",
+},
+primary: {
+  color: "#07be26",
+},
   icon: "#34d399",
 };

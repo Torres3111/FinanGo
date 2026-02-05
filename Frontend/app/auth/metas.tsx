@@ -102,7 +102,7 @@ export default MetasFinanceiras;
 /* ===== Styles ===== */
 
 const STATUS_BAR_HEIGHT =
-  Platform.OS === "android" ? StatusBar.currentHeight ?? 24 : 0;
+  Platform.OS === "android" ? StatusBar.currentHeight ?? 10 : 0;
 
 const styles = StyleSheet.create({
   container: {

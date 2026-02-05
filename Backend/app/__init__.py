@@ -17,6 +17,9 @@ def create_app():
     from app.routes import dashboard_bp 
     app.register_blueprint(dashboard_bp) # Resgistro de Rotas do Dashboard
     
+    from app.routes import contas_fixas_bp 
+    app.register_blueprint(contas_fixas_bp) # Resgistro de Rotas de Contas Fixas
+    
     with app.app_context():
         from . import models
         db.create_all()
