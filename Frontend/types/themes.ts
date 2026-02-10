@@ -19,8 +19,12 @@ export const lightTheme = {
 primary: {
   color: "#07be26",
 },
+money: {
+    color: "#16a34a",
+  },
   icon: "#10b981",
 };
+
 
 export const darkTheme = {
   container: {
@@ -44,5 +48,8 @@ export const darkTheme = {
 primary: {
   color: "#07be26",
 },
+money: {
+    color: "#4CAF50", // verde elegante
+  },
   icon: "#34d399",
 };

@@ -62,6 +62,52 @@ def login():
     }), 200
 ############################## LOGIN DE USUÁRIO ##############################
 
+############################## BUSCA INFORMAÇÕES DE USUÁRIO ##############################
+@auth_bp.route("/auth/info", methods=["GET"])
+def get_user_info():
+    user_id = request.args.get("user_id", type=int)
+
+    if user_id is None:
+        return jsonify({"error": "ID do usuário é obrigatório"}), 400
+
+    usuario = db.session.get(Usuario, user_id)
+
+    if usuario is None:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+
+    return jsonify({
+        "usuario": {
+            "id": usuario.id,
+            "nome": usuario.nome,
+            "email": usuario.email,
+            "salario_mensal": float(usuario.salario_mensal or 0)
+        }
+    }), 200
+############################## BUSCA INFORMAÇÕES DE USUÁRIO ##############################
+
+############################## ALTERA INFORMAÇÕES DE USUÁRIO ##############################
+@auth_bp.route("/auth/alterar", methods=["PUT"])
+def update_user():
+    data = request.get_json()
+    user_id = data.get("id")
+
+    if not user_id:
+        return jsonify({"error": "ID do usuário é obrigatório"}), 400
+
+    usuario = Usuario.query.get(user_id)
+
+    if not usuario:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+
+    usuario.nome = data.get("nome", usuario.nome)
+    usuario.email = data.get("email", usuario.email)
+    usuario.salario_mensal = data.get("salario_mensal", usuario.salario_mensal)
+
+    db.session.commit()
+
+    return jsonify({"message": "Usuário atualizado com sucesso"}), 200
+############################## BUSCA INFORMAÇÕES DE USUÁRIO ##############################
+
 ############################## BUSCA SALÁRIO PARA DASHBOARD ##############################
 dashboard_bp = Blueprint(
     "dashboard",
@@ -84,8 +130,31 @@ def get_salario_mensal():
     return jsonify({
         "salario_mensal": float(usuario.salario_mensal or 0)
     }), 200
-
 ############################## BUSCA SALÁRIO PARA DASHBOARD ##############################
+
+############################## SOMA CONTAS FIXAS PARA DASHBOARD ##############################
+@dashboard_bp.route("/somacontasfixas", methods=["GET"])
+def soma_contas_fixas():
+    user_id = request.args.get("user_id", type=int)
+
+    if not user_id:
+        return jsonify({"error": "ID do usuário é obrigatório"}), 400
+
+    usuario = Usuario.query.get(user_id)
+
+    if not usuario:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+
+    soma = db.session.query(db.func.sum(ContaFixa.valor)).filter_by(usuario_id=user_id, ativa=True).scalar() or 0
+
+    return jsonify({
+        "soma_contas_fixas": float(soma)
+    }), 200
+############################## SOMA CONTAS FIXAS PARA DASHBOARD ##############################
+
+
+
+
 
 ############################# CRIAR NOVA CONTA FIXA #################################
 contas_fixas_bp = Blueprint(
@@ -159,3 +228,55 @@ def listar_contas_fixas():
         for conta in contas
     ]), 200
 ############################# LISTAR CONTAS FIXAS #################################
+
+############################# ALTERAR CONTAS FIXAS #################################
+@contas_fixas_bp.route("/alterar/<int:conta_id>", methods=["PUT"])
+def alterar_conta_fixa(conta_id):
+    data = request.get_json(silent=True)
+
+    if not data:
+        return jsonify({"error": "JSON inválido ou ausente"}), 400
+
+    conta_fixa = db.session.get(ContaFixa, conta_id)
+    if not conta_fixa:
+        return jsonify({"error": "Conta fixa não encontrada"}), 404
+
+    if "nome" in data:
+        conta_fixa.nome = data["nome"]
+
+    if "valor" in data:
+        if data["valor"] < 0:
+            return jsonify({"error": "Valor inválido"}), 400
+        conta_fixa.valor = data["valor"]
+
+    if "dia_vencimento" in data:
+        if not 1 <= data["dia_vencimento"] <= 31:
+            return jsonify({"error": "Dia de vencimento inválido"}), 400
+        conta_fixa.dia_vencimento = data["dia_vencimento"]
+
+    if "ativa" in data:
+        conta_fixa.ativa = data["ativa"]
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Conta fixa alterada com sucesso",
+        "conta_fixa": {
+            "id": conta_fixa.id,
+            "nome": conta_fixa.nome,
+            "valor": float(conta_fixa.valor),
+            "dia_vencimento": conta_fixa.dia_vencimento,
+            "ativa": conta_fixa.ativa
+        }
+    }), 200
+############################# DELETAR CONTAS FIXAS #################################
+@contas_fixas_bp.route("/deletar/<int:conta_id>", methods=["DELETE"])
+def deletar_conta_fixa(conta_id):
+    conta_fixa = db.session.get(ContaFixa, conta_id)
+    if not conta_fixa:
+        return jsonify({"error": "Conta fixa não encontrada"}), 404
+
+    db.session.delete(conta_fixa)
+    db.session.commit()
+    return jsonify({"message": "Conta fixa deletada com sucesso"}), 200
+############################# DELETAR CONTAS FIXAS #################################

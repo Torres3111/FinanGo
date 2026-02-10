@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Modal,
   View,
@@ -12,8 +12,19 @@ import Checkbox from "expo-checkbox";
 import { useTheme } from "@/types/themecontext";
 import { lightTheme, darkTheme } from "@/types/themes";
 
+/* ===== Tipos ===== */
+
+type ContaFixa = {
+  id: number;
+  nome: string;
+  valor: number;
+  dia_vencimento: number;
+  ativa: boolean;
+};
+
 type Props = {
   visible: boolean;
+  conta: ContaFixa | null;
   onClose: () => void;
   onSave: (data: {
     nome: string;
@@ -25,6 +36,7 @@ type Props = {
 
 export function ContaFixaModal({
   visible,
+  conta,
   onClose,
   onSave,
 }: Props) {
@@ -35,10 +47,33 @@ export function ContaFixaModal({
   const [valor, setValor] = useState<number>(0);
   const [valorFormatado, setValorFormatado] = useState("");
   const [diaVencimento, setDiaVencimento] = useState("");
-  const [ativa, setativa] = useState(true);
+  const [ativa, setAtiva] = useState(true);
 
-  function formatarParaReal(valor: string) {
-    const apenasNumeros = valor.replace(/\D/g, "");
+  /* ===== Preencher dados (editar) ou limpar (criar) ===== */
+
+  useEffect(() => {
+    if (conta) {
+      setNome(conta.nome);
+      setValor(conta.valor);
+      setValorFormatado(
+        conta.valor.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+        })
+      );
+      setDiaVencimento(String(conta.dia_vencimento));
+      setAtiva(conta.ativa);
+    } else {
+      setNome("");
+      setValor(0);
+      setValorFormatado("");
+      setDiaVencimento("");
+      setAtiva(true);
+    }
+  }, [conta, visible]);
+
+  function formatarParaReal(valorTexto: string) {
+    const apenasNumeros = valorTexto.replace(/\D/g, "");
     const numero = Number(apenasNumeros) / 100;
 
     return {
@@ -57,13 +92,6 @@ export function ContaFixaModal({
       dia_vencimento: Number(diaVencimento),
       ativa,
     });
-
-    setNome("");
-    setValor(0);
-    setValorFormatado("");
-    setDiaVencimento("");
-    setativa(true);
-    onClose();
   }
 
   return (
@@ -71,7 +99,7 @@ export function ContaFixaModal({
       <View style={styles.overlay}>
         <View style={[styles.container, theme.card]}>
           <Text style={[styles.title, theme.text]}>
-            Nova Conta Fixa
+            {conta ? "Editar Conta Fixa" : "Nova Conta Fixa"}
           </Text>
 
           <TextInput
@@ -94,7 +122,8 @@ export function ContaFixaModal({
             keyboardType="numeric"
             value={valorFormatado}
             onChangeText={(texto) => {
-              const { numero, formatado } = formatarParaReal(texto);
+              const { numero, formatado } =
+                formatarParaReal(texto);
               setValor(numero);
               setValorFormatado(formatado);
             }}
@@ -108,7 +137,7 @@ export function ContaFixaModal({
           />
 
           <TextInput
-            placeholder="Dia do vencimento (1–31)"
+            placeholder="Dia do vencimento (1 - 31)"
             placeholderTextColor={theme.subText.color}
             keyboardType="numeric"
             value={diaVencimento}
@@ -125,8 +154,10 @@ export function ContaFixaModal({
           <View style={styles.checkboxRow}>
             <Checkbox
               value={ativa}
-              onValueChange={setativa}
-              color={ativa ? theme.primary.color : undefined}
+              onValueChange={setAtiva}
+              color={
+                ativa ? theme.primary.color : undefined
+              }
             />
             <Text style={[styles.checkboxText, theme.text]}>
               Conta ativa
@@ -142,7 +173,7 @@ export function ContaFixaModal({
 
             <TouchableOpacity onPress={handleSave}>
               <Text style={[styles.save, theme.primary]}>
-                Salvar
+                {conta ? "Salvar alterações" : "Criar conta"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -151,6 +182,7 @@ export function ContaFixaModal({
     </Modal>
   );
 }
+
 export default ContaFixaModal;
 
 /* ===== Styles ===== */

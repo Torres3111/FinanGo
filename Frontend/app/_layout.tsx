@@ -6,7 +6,7 @@ export default function RootLayout() {
     <ThemeProvider>
     <Stack
       screenOptions={{
-        headerShown: false, // remove esse header preto
+        headerShown: false, // remove header preto
       }}
     />
     </ThemeProvider>

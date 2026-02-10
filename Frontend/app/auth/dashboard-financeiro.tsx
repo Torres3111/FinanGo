@@ -17,7 +17,6 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import API_URL from "@/config/api";
 import MenuCard from "@/components/ui/menuCard";
 import { menuItems } from "@/types/menu";
@@ -37,8 +36,11 @@ export default function DashboardFinanceiro() {
 
   const [activeTab, setActiveTab] =
     useState<AppRoute>("/dashboard-financeiro");
-  const [salarioMensal, setSalarioMensal] = useState(0);
 
+  const [salarioMensal, setSalarioMensal] = useState(0);
+  const [somaContasFixas, setSomaContasFixas] = useState(0);
+
+  /* ===== Carregar salário mensal ===== */
   useEffect(() => {
     async function carregarSalario() {
       try {
@@ -50,6 +52,7 @@ export default function DashboardFinanceiro() {
         );
 
         const data = await response.json();
+
         if (response.ok) {
           setSalarioMensal(data.salario_mensal);
         }
@@ -61,12 +64,44 @@ export default function DashboardFinanceiro() {
     carregarSalario();
   }, []);
 
+  /* ===== Carregar soma das contas fixas ===== */
+  useEffect(() => {
+    async function carregarSomaContasFixas() {
+      try {
+        const userId = await AsyncStorage.getItem("id");
+        if (!userId) return;
+
+        const response = await fetch(
+          `${API_URL}/dashboard/somacontasfixas?user_id=${userId}`
+        );
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setSomaContasFixas(data.soma_contas_fixas);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar soma das contas fixas:", e);
+      }
+    }
+
+    carregarSomaContasFixas();
+  }, []);
+
   function formatarMoeda(valor: number) {
     return valor.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL",
     });
   }
+
+  /* ===== Cálculos ===== */
+  const valorComprometido = somaContasFixas;
+  const valorDisponivel = salarioMensal - valorComprometido;
+  const percentualComprometido =
+    salarioMensal > 0
+      ? ((valorComprometido / salarioMensal) * 100).toFixed(1)
+      : "0";
 
   const cards: Card[] = [
     {
@@ -76,20 +111,19 @@ export default function DashboardFinanceiro() {
     },
     {
       title: "Comprometido",
-      value: "R$ 0,00",
-      subtitle: "0% do salário",
+      value: formatarMoeda(valorComprometido),
+      subtitle: `${percentualComprometido}% do salário`,
       icon: TrendingDown,
     },
     {
       title: "Disponível",
-      value: "R$ 0,00",
+      value: formatarMoeda(valorDisponivel),
       icon: Wallet,
       highlight: true,
     },
     {
       title: "Contas Fixas",
-      value: "R$ 0,00",
-      subtitle: "0 contas",
+      value: formatarMoeda(somaContasFixas),
       icon: Receipt,
     },
     {
@@ -102,16 +136,14 @@ export default function DashboardFinanceiro() {
 
   return (
     <SafeAreaView style={[styles.container, theme.container]}>
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, theme.text]}>Finanças</Text>
+        <Text style={[styles.title, theme.text]}>Dashboard Financeiro 💵</Text>
 
         <TouchableOpacity onPress={toggleTheme}>
-          <Moon size={20} color={theme.text.color} />
+          <Moon size={30} color={theme.text.color} />
         </TouchableOpacity>
       </View>
 
-      {/* Conteúdo */}
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.grid}>
           {cards.map((card, index) => {
@@ -160,7 +192,6 @@ export default function DashboardFinanceiro() {
         <MenuCard
           items={menuItems}
           active={activeTab}
-          //theme={theme}
           onNavigate={(route) => {
             setActiveTab(route);
             router.push(`../auth${route}`);
@@ -170,6 +201,8 @@ export default function DashboardFinanceiro() {
     </SafeAreaView>
   );
 }
+
+/* ===== Styles ===== */
 
 const styles = StyleSheet.create({
   container: {
@@ -189,7 +222,7 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: 16,
-    paddingBottom: 100, // espaço para o menu inferior
+    paddingBottom: 100,
   },
   grid: {
     flexDirection: "row",
