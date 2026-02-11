@@ -19,8 +19,8 @@ import { useTheme } from "@/types/themecontext";
 
 const MetasFinanceiras: React.FC = () => {
   const { darkMode } = useTheme();
-  const [activeTab, setActiveTab] =
-    React.useState<AppRoute>("/metas");
+  //const [activeTab, setActiveTab] =
+    //React.useState<AppRoute>("/metas");
 
   const theme = darkMode ? darkTheme : lightTheme;
 
@@ -83,16 +83,7 @@ const MetasFinanceiras: React.FC = () => {
       </View>
 
       {/* Menu inferior */}
-      <View style={styles.menuWrapper}>
-        <MenuCard
-          items={menuItems}
-          active={activeTab}
-          onNavigate={(route) => {
-            setActiveTab(route);
-            router.push(`../auth${route}`);
-          }}
-        />
-      </View>
+      
     </SafeAreaView>
   );
 };
@@ -166,9 +157,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
     fontWeight: "500",
-  },
-  menuWrapper: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
   },
 });

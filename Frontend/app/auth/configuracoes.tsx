@@ -267,7 +267,9 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   menuWrapper: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    position: "absolute",
+    bottom: 8,
+    left: 16,
+    right: 16,
   },
 });

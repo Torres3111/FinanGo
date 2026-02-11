@@ -66,7 +66,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   menuWrapper: {
-    paddingHorizontal: 16,
-    paddingBottom: 12, 
+    position: "absolute",
+    bottom: 8,
+    left: 16,
+    right: 16,
   },
 });

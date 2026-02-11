@@ -218,7 +218,7 @@ const Contas: React.FC = () => {
           }}
         >
           <Feather name="plus" size={18} color="#FFF" />
-          <Text style={styles.addButtonText}>
+          <Text style={[styles.addButtonText]}>
             Nova Conta
           </Text>
         </TouchableOpacity>
@@ -232,14 +232,21 @@ const Contas: React.FC = () => {
         contentContainerStyle={{ paddingBottom: 24 }}
       />
 
-      <MenuCard
-        items={menuItems}
-        active={activeTab}
-        onNavigate={(route) => {
-          setActiveTab(route);
-          router.push(`../auth${route}`);
-        }}
-      />
+     {/* Menu Inferior */}
+           <View
+             style={[
+               styles.menuWrapper, theme.container
+             ]}
+           >
+             <MenuCard
+               items={menuItems}
+               active={activeTab}
+               onNavigate={(route) => {
+                 setActiveTab(route);
+                 router.push(`../auth${route}`);
+               }}
+             />
+           </View>
 
       {/* ===== Modal Criar / Editar ===== */}
       <ContaFixaModal
@@ -369,7 +376,9 @@ const styles = StyleSheet.create({
   },
 
   menuWrapper: {
-    paddingHorizontal: 16,
-    paddingBottom: 8,
+    position: "absolute",
+    bottom: 8,
+    left: 16,
+    right: 16,
   },
 });

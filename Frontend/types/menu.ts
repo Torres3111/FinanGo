@@ -39,10 +39,10 @@ export const menuItems: MenuItem[] = [
       route: "/parcelamentos",
     },
     {
-      id: "metas",
-      label: "Metas",
+      id: "gastos-diarios",
+      label: "Registro",
       icon: Target,
-      route: "/metas",
+      route: "/gastosdiarios",
     },
     {
       id: "config",
