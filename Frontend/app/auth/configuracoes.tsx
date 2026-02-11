@@ -101,13 +101,6 @@ export default function Configuracoes() {
           salario_mensal: Number(salario) / 100, // 🔹 volta para reais
         }),
       });
-      console.log("Dados enviados:", {
-        id: userId,
-        nome,
-        email,
-        salario_mensal: Number(salario) / 100,
-      });
-
       Alert.alert("Sucesso", "Dados atualizados com sucesso");
     } catch (error) {
       Alert.alert("Erro", "Não foi possível salvar as alterações");
