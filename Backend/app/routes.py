@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.extensions import db
-from app.models import ContaFixa, Usuario
+from app.models import ContaFixa, RegistroDiario, Usuario
+from datetime import datetime
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -106,7 +107,7 @@ def update_user():
     db.session.commit()
 
     return jsonify({"message": "Usuário atualizado com sucesso"}), 200
-############################## BUSCA INFORMAÇÕES DE USUÁRIO ##############################
+############################## ALTERA INFORMAÇÕES DE USUÁRIO ##############################
 
 ############################## BUSCA SALÁRIO PARA DASHBOARD ##############################
 dashboard_bp = Blueprint(
@@ -151,10 +152,6 @@ def soma_contas_fixas():
         "soma_contas_fixas": float(soma)
     }), 200
 ############################## SOMA CONTAS FIXAS PARA DASHBOARD ##############################
-
-
-
-
 
 ############################# CRIAR NOVA CONTA FIXA #################################
 contas_fixas_bp = Blueprint(
@@ -280,3 +277,121 @@ def deletar_conta_fixa(conta_id):
     db.session.commit()
     return jsonify({"message": "Conta fixa deletada com sucesso"}), 200
 ############################# DELETAR CONTAS FIXAS #################################
+
+############################# ADICIONAR GASTO DIÁRIO #################################
+registro_bp = Blueprint(
+    "registro",
+    __name__,
+    url_prefix="/registro"
+)
+
+@registro_bp.route("/adicionar", methods=["POST"])
+def adicionar_gasto_diario():
+    data = request.get_json(silent=True)
+
+    if not data:
+        return jsonify({"error": "JSON inválido ou ausente"}), 400
+
+    user_id = data.get("user_id")
+    descricao = data.get("descricao")
+    valor = data.get("valor")
+    categoria = data.get("categoria")
+    data_registro = data.get("data_registro")
+
+    if not user_id or not descricao or valor is None or not categoria or not data_registro:
+        return jsonify({"error": "Dados obrigatórios ausentes"}), 400
+    
+    try:
+        data_registro = datetime.fromisoformat(data_registro)
+    except ValueError:
+        return jsonify({"error": "Data inválida"}), 400
+    
+    gasto_diario = RegistroDiario(
+        usuario_id=user_id,
+        descricao=descricao,
+        valor=valor,
+        categoria=categoria,
+        data_registro=data_registro
+    )
+
+    db.session.add(gasto_diario)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Gasto diário criado com sucesso",
+        "gasto_diario": {
+            "id": gasto_diario.id,
+            "descricao": gasto_diario.descricao,
+            "valor": float(gasto_diario.valor),
+            "categoria": gasto_diario.categoria,
+            "data_registro": gasto_diario.data_registro
+        }
+    }), 201
+############################# ADICIONAR GASTO DIÁRIO #################################
+
+############################# MOSTRAR GASTOS #################################
+@registro_bp.route("/mostrar/<int:user_id>", methods=["GET"])
+def mostrar_gastos(user_id):
+    gastos = RegistroDiario.query.filter_by(usuario_id=user_id).all()
+    if not gastos:
+        return jsonify({"error": "Nenhum gasto encontrado para o usuário"}), 404
+
+    return jsonify({
+        "gastos": [
+            {
+                "id": gasto.id,
+                "descricao": gasto.descricao,
+                "valor": float(gasto.valor),
+                "categoria": gasto.categoria,
+                "data_registro": gasto.data_registro
+            } for gasto in gastos
+        ]
+    }), 200
+############################# MOSTRAR GASTOS #################################
+
+############################# ALTERAR GASTOS #################################
+@registro_bp.route("/alterar/<int:gasto_id>", methods=["PUT"])
+def alterar_gasto(gasto_id):
+    gasto = db.session.get(RegistroDiario, gasto_id)
+    if not gasto:
+        return jsonify({"error": "Gasto não encontrado"}), 404
+
+    data = request.get_json(silent=True)
+    if not data:
+        return jsonify({"error": "JSON inválido ou ausente"}), 400
+
+    descricao = data.get("descricao")
+    valor = data.get("valor")
+    categoria = data.get("categoria")
+
+    if descricao is not None:
+        gasto.descricao = descricao
+    if valor is not None:
+        gasto.valor = valor
+    if categoria is not None:
+        gasto.categoria = categoria
+
+    db.session.commit()
+    return jsonify({
+        "message": "Gasto alterado com sucesso",
+        "gasto": {
+            "id": gasto.id,
+            "descricao": gasto.descricao,
+            "valor": float(gasto.valor),
+            "categoria": gasto.categoria,
+            "data_registro": gasto.data_registro
+        }
+    }), 200
+############################# ALTERAR GASTOS #################################
+
+############################# DELETAR GASTOS #################################
+@registro_bp.route("/deletar/<int:gasto_id>", methods=["DELETE"])
+def deletar_gasto(gasto_id):
+    gasto = db.session.get(RegistroDiario, gasto_id)
+    if not gasto:
+        return jsonify({"error": "Gasto não encontrado"}), 404
+
+    db.session.delete(gasto)
+    db.session.commit()
+    return jsonify({"message": "Gasto deletado com sucesso"}), 200
+############################# DELETAR GASTOS #################################

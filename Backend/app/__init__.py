@@ -20,6 +20,9 @@ def create_app():
     from app.routes import contas_fixas_bp 
     app.register_blueprint(contas_fixas_bp) # Resgistro de Rotas de Contas Fixas
     
+    from app.routes import registro_bp 
+    app.register_blueprint(registro_bp) # Resgistro de Rotas de Registro Diário
+    
     with app.app_context():
         from . import models
         db.create_all()

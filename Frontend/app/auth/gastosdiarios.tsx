@@ -1,80 +1,212 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  Platform,
   ScrollView,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-
 import MenuCard from "@/components/ui/menuCard";
 import { menuItems } from "@/types/menu";
 import { AppRoute } from "@/types/routes";
-import { useTheme } from "@/types/themecontext"; // ajuste o caminho se necessário
-import { darkTheme } from "@/types/themes";
-import { lightTheme } from "@/types/themes";
-import Feather from "@expo/vector-icons/build/Feather";
+import { useTheme } from "@/types/themecontext";
+import { darkTheme, lightTheme } from "@/types/themes";
+import Feather from "@expo/vector-icons/Feather";
+import ModalGastoDiario from "./modalgastodiario";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import API_URL from "@/config/api";
+
+interface GastoDiario {
+  id: string;
+  descricao: string;
+  valor: number;
+  categoria: string;
+  data_registro: string;
+}
 
 const GastosDiarios = () => {
   const { darkMode } = useTheme();
   const theme = darkMode ? darkTheme : lightTheme;
 
-  const [selectedMonth] = useState("Janeiro de 2026");
+  const [modalVisible, setModalVisible] = useState(false);
+  const [gastos, setGastos] = useState<GastoDiario[]>([]);
   const [activeTab, setActiveTab] =
     useState<AppRoute>("/gastosdiarios");
 
+  const selectedMonth = "Fevereiro de 2026";
+
+  async function buscarGastos() {
+    try {
+      const userId = await AsyncStorage.getItem("id");
+
+      if (!userId) {
+        throw new Error("Usuário não encontrado.");
+      }
+
+      const response = await fetch(
+        `${API_URL}/registro/mostrar/${userId}`
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao buscar gastos.");
+      }
+
+      setGastos(data.gastos || []);
+    } catch (error: any) {
+      Alert.alert("Erro", error.message);
+    }
+  }
+
+  useEffect(() => {
+    buscarGastos();
+  }, []);
+
+  async function criarGastoDiario({
+    descricao,
+    valor,
+    categoria,
+    data,
+  }: {
+    descricao: string;
+    valor: number;
+    categoria: string;
+    data: Date;
+  }) {
+    try {
+      const userId = await AsyncStorage.getItem("id");
+
+      if (!userId) {
+        throw new Error("Usuário não encontrado.");
+      }
+
+      const dataFormatada = data
+        .toISOString()
+        .split("T")[0];
+
+      const response = await fetch(
+        `${API_URL}/registro/adicionar`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: Number(userId),
+            descricao,
+            valor,
+            categoria,
+            data_registro: dataFormatada,
+          }),
+        }
+      );
+
+      const dataResponse = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          dataResponse.error ||
+            "Erro ao criar gasto."
+        );
+      }
+
+      return dataResponse.gasto_diario;
+    } catch (error: any) {
+      Alert.alert("Erro", error.message);
+      return null;
+    }
+  }
+
+
+  const totalMes = gastos.reduce(
+    (total, gasto) => total + gasto.valor,
+    0
+  );
+
   return (
     <SafeAreaView
-      style={[
-        styles.container, theme.container
-      ]}
+      style={[styles.container, theme.container]}
     >
       <StatusBar
-        barStyle={darkMode ? "light-content" : "dark-content"}
+        barStyle={
+          darkMode
+            ? "light-content"
+            : "dark-content"
+        }
       />
 
       <View style={styles.content}>
-        {/* Header */}
+        {/* HEADER */}
         <View style={styles.header}>
           <View>
-            <Text style={[styles.title, theme.text]}>
+            <Text
+              style={[
+                styles.title,
+                theme.text,
+              ]}
+            >
               Gastos Diários
             </Text>
-            <Text style={[styles.subtitle, theme.subText]}> Registre seus gastos do dia a dia</Text>
+            <Text
+              style={[
+                styles.subtitle,
+                theme.subText,
+              ]}
+            >
+              Registre seus gastos do dia a dia
+            </Text>
           </View>
 
-         <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            /*setContaSelecionada(null); */
-            /*setModalVisible(true);*/
-          }}
-        >
-          <Feather name="plus" size={18} color="#FFF" />
-          <Text style={[styles.addButtonText]}>
-            Novo Gasto
-          </Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() =>
+              setModalVisible(true)
+            }
+          >
+            <Feather
+              name="plus"
+              size={18}
+              color="#FFF"
+            />
+            <Text
+              style={
+                styles.addButtonText
+              }
+            >
+              Novo Gasto
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={
+            false
+          }
+          contentContainerStyle={
+            styles.scrollContent
+          }
         >
-          {/* Seletor de Mês */}
+          {/* MÊS */}
           <View
             style={[
-              styles.card, theme.card
+              styles.card,
+              theme.card,
             ]}
           >
-            <TouchableOpacity style={styles.monthButton}>
+            <TouchableOpacity
+              style={
+                styles.monthButton
+              }
+            >
               <Text
                 style={[
-                  styles.monthText, theme.text
+                  styles.monthText,
+                  theme.text,
                 ]}
               >
                 {selectedMonth}
@@ -82,45 +214,102 @@ const GastosDiarios = () => {
             </TouchableOpacity>
           </View>
 
-          {/* Total do mês */}
+          {/* TOTAL */}
           <View
             style={[
-              styles.totalCard, theme.card
+              styles.totalCard,
+              theme.card,
             ]}
           >
             <Text
               style={[
-                styles.totalLabel, theme.subText
+                styles.totalLabel,
+                theme.subText,
               ]}
             >
               Total do mês
             </Text>
             <Text
               style={[
-                styles.totalValue, theme.text
+                styles.totalValue,
+                theme.text,
               ]}
             >
-              R$ 0,00
+              R${" "}
+              {totalMes
+                .toFixed(2)
+                .replace(".", ",")}
             </Text>
           </View>
 
-          {/* Estado vazio */}
-          <View style={styles.emptyState}>
-            <Text
-              style={[
-                styles.emptyStateText, theme.subText
-              ]}
+          {/* LISTA DE GASTOS */}
+          {gastos.length === 0 ? (
+            <View
+              style={
+                styles.emptyState
+              }
             >
-              Nenhum gasto registrado neste mês
-            </Text>
-          </View>
+              <Text
+                style={[
+                  styles.emptyStateText,
+                  theme.subText,
+                ]}
+              >
+                Nenhum gasto registrado neste mês
+              </Text>
+            </View>
+          ) : (
+            gastos.map((gasto) => (
+              <View
+                key={gasto.id}
+                style={[
+                  styles.gastoCard,
+                  theme.card,
+                ]}
+              >
+                <View>
+                  <Text
+                    style={[
+                      styles.gastoDescricao,
+                      theme.text,
+                    ]}
+                  >
+                    {gasto.descricao}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.gastoCategoria,
+                      theme.subText,
+                    ]}
+                  >
+                    {
+                      gasto.categoria
+                    }
+                  </Text>
+                </View>
+
+                <Text
+                  style={[
+                    styles.gastoValor,
+                    theme.text,
+                  ]}
+                >
+                  R${" "}
+                  {gasto.valor
+                    .toFixed(2)
+                    .replace(".", ",")}
+                </Text>
+              </View>
+            ))
+          )}
         </ScrollView>
       </View>
 
-      {/* Menu Inferior */}
+      {/* MENU */}
       <View
         style={[
-          styles.menuWrapper, theme.container
+          styles.menuWrapper,
+          theme.container,
         ]}
       >
         <MenuCard
@@ -128,24 +317,55 @@ const GastosDiarios = () => {
           active={activeTab}
           onNavigate={(route) => {
             setActiveTab(route);
-            router.push(`../auth${route}`);
+            router.push(
+              `../auth${route}`
+            );
           }}
         />
       </View>
+
+      {/* MODAL */}
+      <ModalGastoDiario
+        visible={modalVisible}
+        gasto={null}
+        onClose={() =>
+          setModalVisible(false)
+        }
+        onSave={async (data) => {
+          const novoGasto =
+            await criarGastoDiario({
+              descricao:
+                data.descricao,
+              valor: data.valor,
+              categoria:
+                data.categoria,
+              data: new Date(
+                data.data_registro
+              ),
+            });
+
+          if (novoGasto) {
+            setModalVisible(false);
+            setGastos((prev) => [
+              ...prev,
+              novoGasto,
+            ]);
+          }
+        }}
+      />
     </SafeAreaView>
   );
 };
 
 export default GastosDiarios;
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+/* ===============================
+   STYLES
+=============================== */
 
-  content: {
-    flex: 1,
-  },
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  content: { flex: 1 },
 
   header: {
     marginTop: 24,
@@ -160,13 +380,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-    marginBottom: 6,
   },
 
   subtitle: {
     fontSize: 15,
-    marginTop: 15,
-    paddingVertical: 1,
+    marginTop: 4,
   },
 
   addButton: {
@@ -176,7 +394,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
-    alignSelf: "flex-start",
   },
 
   addButtonText: {
@@ -185,10 +402,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
-  
+
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 120,
   },
 
   card: {
@@ -219,6 +436,30 @@ const styles = StyleSheet.create({
 
   totalValue: {
     fontSize: 22,
+    fontWeight: "bold",
+  },
+
+  gastoCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  gastoDescricao: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  gastoCategoria: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+
+  gastoValor: {
+    fontSize: 16,
     fontWeight: "bold",
   },
 
