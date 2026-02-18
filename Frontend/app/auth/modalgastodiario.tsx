@@ -86,7 +86,6 @@ export function GastoDiarioModal({
     }
   }, [gasto, visible]);
 
-  /* ===== Formatação monetária ===== */
 
   function formatarParaReal(valorTexto: string) {
     const apenasNumeros = valorTexto.replace(/\D/g, "");

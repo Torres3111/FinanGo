@@ -21,7 +21,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import API_URL from "@/config/api";
 
 interface GastoDiario {
-  id: string;
+  id: number;
   descricao: string;
   valor: number;
   categoria: string;
@@ -34,18 +34,22 @@ const GastosDiarios = () => {
 
   const [modalVisible, setModalVisible] = useState(false);
   const [gastos, setGastos] = useState<GastoDiario[]>([]);
+  const [gastoSelecionado, setGastoSelecionado] =
+    useState<GastoDiario | null>(null);
+
   const [activeTab, setActiveTab] =
     useState<AppRoute>("/gastosdiarios");
 
   const selectedMonth = "Fevereiro de 2026";
 
+  /* ===============================
+     BUSCAR GASTOS
+  =============================== */
   async function buscarGastos() {
     try {
       const userId = await AsyncStorage.getItem("id");
 
-      if (!userId) {
-        throw new Error("Usuário não encontrado.");
-      }
+      if (!userId) throw new Error("Usuário não encontrado.");
 
       const response = await fetch(
         `${API_URL}/registro/mostrar/${userId}`
@@ -53,9 +57,8 @@ const GastosDiarios = () => {
 
       const data = await response.json();
 
-      if (!response.ok) {
+      if (!response.ok)
         throw new Error(data.error || "Erro ao buscar gastos.");
-      }
 
       setGastos(data.gastos || []);
     } catch (error: any) {
@@ -67,61 +70,79 @@ const GastosDiarios = () => {
     buscarGastos();
   }, []);
 
-  async function criarGastoDiario({
-    descricao,
-    valor,
-    categoria,
-    data,
-  }: {
-    descricao: string;
-    valor: number;
-    categoria: string;
-    data: Date;
-  }) {
-    try {
-      const userId = await AsyncStorage.getItem("id");
-
-      if (!userId) {
-        throw new Error("Usuário não encontrado.");
+  /* ===============================
+     CRIAR
+  =============================== */
+  async function criarGastoDiario(payload: any) {
+    const response = await fetch(
+      `${API_URL}/registro/adicionar`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       }
+    );
 
-      const dataFormatada = data
-        .toISOString()
-        .split("T")[0];
+    const data = await response.json();
 
-      const response = await fetch(
-        `${API_URL}/registro/adicionar`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: Number(userId),
-            descricao,
-            valor,
-            categoria,
-            data_registro: dataFormatada,
-          }),
-        }
-      );
+    if (!response.ok)
+      throw new Error(data.error || "Erro ao criar.");
 
-      const dataResponse = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          dataResponse.error ||
-            "Erro ao criar gasto."
-        );
-      }
-
-      return dataResponse.gasto_diario;
-    } catch (error: any) {
-      Alert.alert("Erro", error.message);
-      return null;
-    }
+    return data.gasto_diario;
   }
 
+  /* ===============================
+     EDITAR
+  =============================== */
+  async function editarGastoDiario(id: string, payload: any) {
+  const response = await fetch(
+    `${API_URL}/registro/alterar/${id}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok)
+    throw new Error(data.error || "Erro ao editar.");
+
+  return data.gasto; 
+}
+
+
+  /* ===============================
+     EXCLUIR
+  =============================== */
+  async function excluirGastoDiario(id: string) {
+    Alert.alert(
+      "Excluir Gasto",
+      "Tem certeza que deseja excluir?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Excluir",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await fetch(
+                `${API_URL}/registro/deletar/${id}`,
+                { method: "DELETE" }
+              );
+
+              setGastos((prev) =>
+                prev.filter((g) => g.id !== Number(id))
+              );
+            } catch {
+              Alert.alert("Erro", "Falha ao excluir.");
+            }
+          },
+        },
+      ]
+    );
+  }
 
   const totalMes = gastos.reduce(
     (total, gasto) => total + gasto.valor,
@@ -129,132 +150,53 @@ const GastosDiarios = () => {
   );
 
   return (
-    <SafeAreaView
-      style={[styles.container, theme.container]}
-    >
+    <SafeAreaView style={[styles.container, theme.container]}>
       <StatusBar
-        barStyle={
-          darkMode
-            ? "light-content"
-            : "dark-content"
-        }
+        barStyle={darkMode ? "light-content" : "dark-content"}
       />
 
       <View style={styles.content}>
         {/* HEADER */}
         <View style={styles.header}>
           <View>
-            <Text
-              style={[
-                styles.title,
-                theme.text,
-              ]}
-            >
+            <Text style={[styles.title, theme.text]}>
               Gastos Diários
             </Text>
-            <Text
-              style={[
-                styles.subtitle,
-                theme.subText,
-              ]}
-            >
+            <Text style={[styles.subtitle, theme.subText]}>
               Registre seus gastos do dia a dia
             </Text>
           </View>
 
           <TouchableOpacity
             style={styles.addButton}
-            onPress={() =>
-              setModalVisible(true)
-            }
+            onPress={() => {
+              setGastoSelecionado(null);
+              setModalVisible(true);
+            }}
           >
-            <Feather
-              name="plus"
-              size={18}
-              color="#FFF"
-            />
-            <Text
-              style={
-                styles.addButtonText
-              }
-            >
+            <Feather name="plus" size={18} color="#FFF" />
+            <Text style={styles.addButtonText}>
               Novo Gasto
             </Text>
           </TouchableOpacity>
         </View>
 
         <ScrollView
-          showsVerticalScrollIndicator={
-            false
-          }
-          contentContainerStyle={
-            styles.scrollContent
-          }
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
         >
-          {/* MÊS */}
-          <View
-            style={[
-              styles.card,
-              theme.card,
-            ]}
-          >
-            <TouchableOpacity
-              style={
-                styles.monthButton
-              }
-            >
-              <Text
-                style={[
-                  styles.monthText,
-                  theme.text,
-                ]}
-              >
-                {selectedMonth}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* TOTAL */}
-          <View
-            style={[
-              styles.totalCard,
-              theme.card,
-            ]}
-          >
-            <Text
-              style={[
-                styles.totalLabel,
-                theme.subText,
-              ]}
-            >
+          <View style={[styles.totalCard, theme.card]}>
+            <Text style={[styles.totalLabel, theme.subText]}>
               Total do mês
             </Text>
-            <Text
-              style={[
-                styles.totalValue,
-                theme.text,
-              ]}
-            >
-              R${" "}
-              {totalMes
-                .toFixed(2)
-                .replace(".", ",")}
+            <Text style={[styles.totalValue, theme.text]}>
+              R$ {totalMes.toFixed(2).replace(".", ",")}
             </Text>
           </View>
 
-          {/* LISTA DE GASTOS */}
           {gastos.length === 0 ? (
-            <View
-              style={
-                styles.emptyState
-              }
-            >
-              <Text
-                style={[
-                  styles.emptyStateText,
-                  theme.subText,
-                ]}
-              >
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyStateText, theme.subText]}>
                 Nenhum gasto registrado neste mês
               </Text>
             </View>
@@ -262,12 +204,9 @@ const GastosDiarios = () => {
             gastos.map((gasto) => (
               <View
                 key={gasto.id}
-                style={[
-                  styles.gastoCard,
-                  theme.card,
-                ]}
+                style={[styles.gastoCard, theme.card]}
               >
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text
                     style={[
                       styles.gastoDescricao,
@@ -282,9 +221,7 @@ const GastosDiarios = () => {
                       theme.subText,
                     ]}
                   >
-                    {
-                      gasto.categoria
-                    }
+                    {gasto.categoria}
                   </Text>
                 </View>
 
@@ -294,74 +231,110 @@ const GastosDiarios = () => {
                     theme.text,
                   ]}
                 >
-                  R${" "}
-                  {gasto.valor
-                    .toFixed(2)
-                    .replace(".", ",")}
+                  R$ {gasto.valor.toFixed(2).replace(".", ",")}
                 </Text>
+
+                {/* AÇÕES */}
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setGastoSelecionado(gasto);
+                      setModalVisible(true);
+                    }}
+                  >
+                    <Feather
+                      name="edit"
+                      size={18}
+                      color="#2D5F3F"
+                    />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() =>
+                      excluirGastoDiario(String(gasto.id))
+                    }
+                  >
+                    <Feather
+                      name="trash-2"
+                      size={18}
+                      color="#D11A2A"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))
           )}
         </ScrollView>
       </View>
 
-      {/* MENU */}
-      <View
-        style={[
-          styles.menuWrapper,
-          theme.container,
-        ]}
-      >
-        <MenuCard
-          items={menuItems}
-          active={activeTab}
-          onNavigate={(route) => {
-            setActiveTab(route);
-            router.push(
-              `../auth${route}`
-            );
-          }}
-        />
-      </View>
-
-      {/* MODAL */}
       <ModalGastoDiario
         visible={modalVisible}
-        gasto={null}
-        onClose={() =>
-          setModalVisible(false)
-        }
+        gasto={gastoSelecionado}
+        onClose={() => setModalVisible(false)}
         onSave={async (data) => {
-          const novoGasto =
-            await criarGastoDiario({
-              descricao:
-                data.descricao,
-              valor: data.valor,
-              categoria:
-                data.categoria,
-              data: new Date(
-                data.data_registro
-              ),
-            });
+          try {
+            const userId =
+              await AsyncStorage.getItem("id");
 
-          if (novoGasto) {
+            const payload = {
+              user_id: Number(userId),
+              descricao: data.descricao,
+              valor: data.valor,
+              categoria: data.categoria,
+              data_registro: new Date(
+                data.data_registro
+              )
+                .toISOString()
+                .split("T")[0],
+            };
+
+            if (gastoSelecionado) {
+              const atualizado =
+                await editarGastoDiario(
+                  String(gastoSelecionado.id),
+                  payload
+                );
+
+              setGastos((prev) =>
+                prev.map((g) =>
+                  g.id === gastoSelecionado.id
+                    ? atualizado
+                    : g
+                )
+              );
+            } else {
+              const novo =
+                await criarGastoDiario(payload);
+
+              setGastos((prev) => [
+                ...prev,
+                novo,
+              ]);
+            }
+
             setModalVisible(false);
-            setGastos((prev) => [
-              ...prev,
-              novoGasto,
-            ]);
+          } catch (error: any) {
+            Alert.alert("Erro", error.message);
           }
         }}
       />
+
+       {/* Menu inferior */}
+            <View style={styles.bottomMenu}>
+              <MenuCard
+                items={menuItems}
+                active={activeTab}
+                onNavigate={(route) => {
+                  setActiveTab(route);
+                  router.push(`../auth${route}`);
+                }}
+              />
+            </View>
     </SafeAreaView>
   );
 };
 
 export default GastosDiarios;
-
-/* ===============================
-   STYLES
-=============================== */
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -374,7 +347,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
   },
 
   title: {
@@ -391,14 +363,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#2D5F3F",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    padding: 12,
     borderRadius: 10,
   },
 
   addButtonText: {
     color: "#FFFFFF",
-    fontSize: 15,
     fontWeight: "600",
     marginLeft: 8,
   },
@@ -408,32 +378,13 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
 
-  card: {
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-
-  monthButton: {
-    paddingVertical: 8,
-  },
-
-  monthText: {
-    fontSize: 14,
-    fontWeight: "500",
-  },
-
   totalCard: {
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
   },
 
-  totalLabel: {
-    fontSize: 14,
-    marginBottom: 6,
-  },
-
+  totalLabel: { fontSize: 14 },
   totalValue: {
     fontSize: 22,
     fontWeight: "bold",
@@ -444,8 +395,8 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
   },
 
   gastoDescricao: {
@@ -461,6 +412,12 @@ const styles = StyleSheet.create({
   gastoValor: {
     fontSize: 16,
     fontWeight: "bold",
+    marginRight: 10,
+  },
+
+  actions: {
+    flexDirection: "row",
+    gap: 12,
   },
 
   emptyState: {
@@ -471,8 +428,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
   },
-
-  menuWrapper: {
+  bottomMenu: {
     position: "absolute",
     bottom: 8,
     left: 16,
