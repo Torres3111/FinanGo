@@ -4,4 +4,5 @@ export type AppRoute =
   | "/contas"
   | "/parcelamentos"
   | "/gastosdiarios"
+  | "/graficos"
   | "/configuracoes";

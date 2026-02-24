@@ -39,8 +39,9 @@ export default function DashboardFinanceiro() {
 
   const [salarioMensal, setSalarioMensal] = useState(0);
   const [somaContasFixas, setSomaContasFixas] = useState(0);
+  const [registroDiario, setRegistroDiario] = useState(0);
+  const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth());
 
-  /* ===== Carregar salário mensal ===== */
   useEffect(() => {
     async function carregarSalario() {
       try {
@@ -64,7 +65,6 @@ export default function DashboardFinanceiro() {
     carregarSalario();
   }, []);
 
-  /* ===== Carregar soma das contas fixas ===== */
   useEffect(() => {
     async function carregarSomaContasFixas() {
       try {
@@ -88,6 +88,32 @@ export default function DashboardFinanceiro() {
     carregarSomaContasFixas();
   }, []);
 
+
+  useEffect(() => {
+    async function carregarRegistrosDiariosdomes() {
+      try {
+        const mes = new Date().getMonth() + 1; 
+        const userId = await AsyncStorage.getItem("id");
+        if (!userId) return;
+
+
+        const response = await fetch(
+          `${API_URL}/registro/total-gasto-mes/${userId}/${mes}/2026`
+        );
+        const data = await response.json();
+        if (response.ok) {
+          setRegistroDiario(data.total);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar soma dos registros:", e);
+      }
+    }
+
+    carregarRegistrosDiariosdomes();
+  }, []);
+
+  
+
   function formatarMoeda(valor: number) {
     return valor.toLocaleString("pt-BR", {
       style: "currency",
@@ -96,7 +122,7 @@ export default function DashboardFinanceiro() {
   }
 
   /* ===== Cálculos ===== */
-  const valorComprometido = somaContasFixas;
+  const valorComprometido = somaContasFixas + registroDiario;
   const valorDisponivel = salarioMensal - valorComprometido;
   const percentualComprometido =
     salarioMensal > 0

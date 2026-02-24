@@ -366,7 +366,7 @@ const styles = StyleSheet.create({
 
   emptyState: {
     alignItems: "center",
-    marginTop: 48,
+    marginTop: 8,
   },
 
   emptyStateText: {

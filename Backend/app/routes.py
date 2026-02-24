@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from app.extensions import db
 from app.models import ContaFixa, RegistroDiario, Usuario
 from datetime import datetime
+from sqlalchemy import func
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -395,3 +396,91 @@ def deletar_gasto(gasto_id):
     db.session.commit()
     return jsonify({"message": "Gasto deletado com sucesso"}), 200
 ############################# DELETAR GASTOS #################################
+
+############################# PÁGINA DE GASTOS #################################
+
+############################# TOTAL GASTO POR MÊS/ANO #################################
+@registro_bp.route("/total-gasto-mes/<int:user_id>/<int:mes>/<int:ano>", methods=["GET"])
+def total_gasto_mes(user_id, mes, ano):
+    gastos = RegistroDiario.query.filter_by(usuario_id=user_id).filter(
+        db.extract('month', RegistroDiario.data_registro) == mes,
+        db.extract('year', RegistroDiario.data_registro) == ano
+    ).all()
+    
+    total = db.session.query(func.sum(RegistroDiario.valor)).filter(
+    RegistroDiario.usuario_id == user_id,
+    db.extract('month', RegistroDiario.data_registro) == mes,
+    db.extract('year', RegistroDiario.data_registro) == ano ).scalar() or 0
+    return jsonify({
+        "total": float(total),
+        "gastos": len(gastos)
+    }), 200
+############################# TOTAL GASTO POR MÊS/ANO #################################
+
+############################# TOTAL GASTO POR CATEGORIA MÊS/ANO #################################
+@registro_bp.route("/total-gasto-categoria/<int:user_id>/<int:mes>/<int:ano>", methods=["GET"])
+def total_gasto_categoria(user_id, mes, ano):
+    categorias = [ "Alimentação","Transporte","Lazer","Saúde","Educação","Compras","Outros"]
+    resultados = db.session.query(
+        RegistroDiario.categoria,
+        func.sum(RegistroDiario.valor)
+    ).filter(
+        RegistroDiario.usuario_id == user_id,
+        db.extract('month', RegistroDiario.data_registro) == mes,
+        db.extract('year', RegistroDiario.data_registro) == ano
+    ).group_by(RegistroDiario.categoria).all()
+
+    resultado = {categoria: 0.0 for categoria in categorias}
+
+    for categoria, total in resultados:
+        resultado[categoria] = float(total)
+
+    return jsonify({
+        "total_por_categoria": resultado
+    }), 200
+############################# TOTAL GASTO POR CATEGORIA MÊS/ANO #################################
+
+############################# PERCENTUAL DE CATEGORIA MÊS/ANO #################################
+@registro_bp.route("/percentual-gasto-categoria/<int:user_id>/<int:mes>/<int:ano>", methods=["GET"])
+def percentual_gasto_categoria(user_id, mes, ano):
+    gastos = RegistroDiario.query.filter_by(usuario_id=user_id).filter(
+        db.extract('month', RegistroDiario.data_registro) == mes,
+        db.extract('year', RegistroDiario.data_registro) == ano
+    ).all()
+
+    total = sum(gasto.valor for gasto in gastos)
+    if total == 0:
+        return jsonify({"error": "Nenhum gasto registrado no mês e ano especificados"}), 404
+
+    categorias = [ "Alimentação","Transporte","Lazer","Saúde","Educação","Compras","Outros"]
+    resultado = {}
+    for categoria in categorias:
+        gastos_categoria = RegistroDiario.query.filter_by(usuario_id=user_id, categoria=categoria).filter(
+            db.extract('month', RegistroDiario.data_registro) == mes,
+            db.extract('year', RegistroDiario.data_registro) == ano
+        ).all()
+        total_categoria = sum(gasto.valor for gasto in gastos_categoria)
+        percentual = (total_categoria / total * 100) if total > 0 else 0
+        resultado[categoria] = float(percentual)
+
+    return jsonify({
+        "percentual_por_categoria": resultado
+    }), 200
+############################# PERCENTUAL DE CATEGORIA MÊS/ANO #################################
+
+############################# TOTAL GASTO POR ANO #################################
+@registro_bp.route("/total-gasto-ano/<int:user_id>/<int:ano>", methods=["GET"])
+def total_gasto_ano(user_id, ano):
+    gastos = RegistroDiario.query.filter_by(usuario_id=user_id).filter(
+        db.extract('year', RegistroDiario.data_registro) == ano
+    ).all()
+
+    total = sum(gasto.valor for gasto in gastos)
+    return jsonify({
+        "total": float(total),
+        "gastos": len(gastos)
+    }), 200
+############################# TOTAL GASTO POR MÊS #################################
+
+
+############################# PÁGINA DE GASTOS #################################

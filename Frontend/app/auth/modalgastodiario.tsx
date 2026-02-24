@@ -45,7 +45,6 @@ const categorias = [
   "Saúde",
   "Educação",
   "Compras",
-  "Assinaturas",
   "Outros",
 ];
 

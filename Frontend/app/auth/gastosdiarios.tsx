@@ -42,9 +42,7 @@ const GastosDiarios = () => {
 
   const selectedMonth = "Fevereiro de 2026";
 
-  /* ===============================
-     BUSCAR GASTOS
-  =============================== */
+
   async function buscarGastos() {
     try {
       const userId = await AsyncStorage.getItem("id");
@@ -70,9 +68,7 @@ const GastosDiarios = () => {
     buscarGastos();
   }, []);
 
-  /* ===============================
-     CRIAR
-  =============================== */
+
   async function criarGastoDiario(payload: any) {
     const response = await fetch(
       `${API_URL}/registro/adicionar`,
@@ -91,9 +87,7 @@ const GastosDiarios = () => {
     return data.gasto_diario;
   }
 
-  /* ===============================
-     EDITAR
-  =============================== */
+
   async function editarGastoDiario(id: string, payload: any) {
   const response = await fetch(
     `${API_URL}/registro/alterar/${id}`,
@@ -113,9 +107,6 @@ const GastosDiarios = () => {
 }
 
 
-  /* ===============================
-     EXCLUIR
-  =============================== */
   async function excluirGastoDiario(id: string) {
     Alert.alert(
       "Excluir Gasto",
@@ -185,13 +176,27 @@ const GastosDiarios = () => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
+          
           <View style={[styles.totalCard, theme.card]}>
-            <Text style={[styles.totalLabel, theme.subText]}>
-              Total do mês
-            </Text>
-            <Text style={[styles.totalValue, theme.text]}>
-              R$ {totalMes.toFixed(2).replace(".", ",")}
-            </Text>
+            <View style={styles.totalRow}>
+              <View>
+                <Text style={[styles.totalLabel, theme.subText]}>
+                  Total do mês
+                  </Text>
+                  <Text style={[styles.totalValue, theme.text]}>
+                    R$ {totalMes.toFixed(2).replace(".", ",")}
+                  </Text>
+              </View>
+              <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => router.push("/auth/graficos")}
+              >
+                <Feather name ="table" size={18} color="#FFF" />
+                <Text style={styles.addButtonText}>
+                  Ver Gráficos
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           {gastos.length === 0 ? (
@@ -318,7 +323,6 @@ const GastosDiarios = () => {
           }
         }}
       />
-
        {/* Menu inferior */}
             <View style={styles.bottomMenu}>
               <MenuCard
@@ -384,6 +388,12 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
 
+  totalRow: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+},
+
   totalLabel: { fontSize: 14 },
   totalValue: {
     fontSize: 22,
@@ -428,6 +438,7 @@ const styles = StyleSheet.create({
   emptyStateText: {
     fontSize: 14,
   },
+
   bottomMenu: {
     position: "absolute",
     bottom: 8,
