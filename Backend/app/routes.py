@@ -482,5 +482,35 @@ def total_gasto_ano(user_id, ano):
     }), 200
 ############################# TOTAL GASTO POR MÊS #################################
 
+############################# TOTAL GASTO POR MÊS POR USUÁRIO DIVIDIDO POR MÊS DO ANO #################################
+@registro_bp.route("/total-gasto-mes-ano/<int:user_id>/<int:ano>", methods=["GET"])
+def total_gasto_mes_ano(user_id, ano):
+
+    gastos_diarios = (
+        db.session.query(
+            db.extract('month', RegistroDiario.data_registro).label('mes'),
+            func.sum(RegistroDiario.valor).label('total')
+        )
+        .filter(RegistroDiario.usuario_id == user_id)
+        .filter(db.extract('year', RegistroDiario.data_registro) == ano)
+        .group_by('mes')
+        .all()
+    )
+
+    total_contas_fixas = (
+        db.session.query(func.sum(ContaFixa.valor))
+        .filter(ContaFixa.usuario_id == user_id)
+        .scalar()
+    )
+
+    total_contas_fixas = float(total_contas_fixas or 0.0)
+    resultado = {mes: total_contas_fixas for mes in range(1, 13)}
+    for mes, total in gastos_diarios:
+        resultado[int(mes)] += float(total)
+
+    return jsonify({
+        "total_por_mes": resultado
+    }), 200
+############################# TOTAL GASTO POR MÊS POR USUÁRIO DIVIDIDO POR MÊS DO ANO #################################
 
 ############################# PÁGINA DE GASTOS #################################

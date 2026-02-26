@@ -181,7 +181,7 @@ const GastosDiarios = () => {
             <View style={styles.totalRow}>
               <View>
                 <Text style={[styles.totalLabel, theme.subText]}>
-                  Total do mês
+                  Total gasto em Registros Diários 🥲
                   </Text>
                   <Text style={[styles.totalValue, theme.text]}>
                     R$ {totalMes.toFixed(2).replace(".", ",")}

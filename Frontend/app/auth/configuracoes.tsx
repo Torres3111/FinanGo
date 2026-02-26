@@ -33,7 +33,7 @@ export default function Configuracoes() {
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
-  const [salario, setSalario] = useState(""); 
+  const [salario, setSalario] = useState("");
 
   useEffect(() => {
     carregarUsuario();
@@ -98,18 +98,36 @@ export default function Configuracoes() {
           id: userId,
           nome,
           email,
-          salario_mensal: Number(salario) / 100, // 🔹 volta para reais
+          salario_mensal: Number(salario) / 100,
         }),
       });
+
       Alert.alert("Sucesso", "Dados atualizados com sucesso");
     } catch (error) {
       Alert.alert("Erro", "Não foi possível salvar as alterações");
     }
   }
 
+  async function logout() {
+    Alert.alert(
+      "Confirmar Logout",
+      "Deseja realmente sair da sua conta?",
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sair",
+          style: "destructive",
+          onPress: async () => {
+            await AsyncStorage.clear();
+            router.replace("../auth/login");
+          },
+        },
+      ]
+    );
+  }
+
   return (
     <SafeAreaView style={[styles.container, theme.container]}>
-      {/* Conteúdo */}
       <View style={styles.content}>
         <View style={styles.titleWrapper}>
           <Text style={[styles.title, theme.text]}>
@@ -171,17 +189,20 @@ export default function Configuracoes() {
                 Salvar alterações
               </Text>
             </TouchableOpacity>
+
+            {/* BOTÃO LOGOUT */}
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={logout}
+            >
+              <Text style={styles.logoutButtonText}>
+                Logout
+              </Text>
+            </TouchableOpacity>
           </>
         )}
       </View>
 
-      <Text style={styles.warningText}>
-        * Esse aplicativo foi construído para apenas facilitar
-        o seu controle pessoal. Sempre que possível, cheque
-        as informações!
-      </Text>
-
-      {/* Menu inferior */}
       <View style={styles.menuWrapper}>
         <MenuCard
           items={menuItems}
@@ -195,7 +216,6 @@ export default function Configuracoes() {
     </SafeAreaView>
   );
 }
-
 
 const STATUS_BAR_HEIGHT =
   Platform.OS === "android"
@@ -256,6 +276,18 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   buttonText: {
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  logoutButton: {
+    backgroundColor: "#b00020",
+    paddingVertical: 16,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  logoutButtonText: {
     color: "#fff",
     fontWeight: "700",
     fontSize: 16,
