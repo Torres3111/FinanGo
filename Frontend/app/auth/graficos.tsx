@@ -4,18 +4,14 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  ActivityIndicator,
   TouchableOpacity,
   StatusBar,
-  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { useTheme } from "@/types/themecontext";
 import { darkTheme, lightTheme } from "@/types/themes";
 import {
-  BarChart,
-  X,
   Utensils,
   Car,
   Smile,
@@ -23,7 +19,6 @@ import {
   GraduationCap,
   ShoppingBag,
   CircleEllipsis,
-  Info,
 } from "lucide-react-native";
 import API_URL from "@/config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -93,11 +88,7 @@ export default function Graficos() {
       if (!userId) throw new Error("UserId não encontrado");
 
       const response = await fetch(
-        `${API_URL}/registro/total-gasto-mes/${Number(
-          userId
-        )}/${mes}/2026`
-      );
-
+        `${API_URL}/registro/total-gasto-mes/${Number(userId)}/${mes}/2026`);
       return await response.json();
     } catch (error) {
       console.error("Erro ao buscar total de gasto por mês:", error);
@@ -113,11 +104,7 @@ export default function Graficos() {
       if (!userId) throw new Error("UserId não encontrado");
 
       const response = await fetch(
-        `${API_URL}/registro/total-gasto-categoria/${Number(
-          userId
-        )}/${mes}/2026`
-      );
-
+        `${API_URL}/registro/total-gasto-categoria/${Number(userId)}/${mes}/2026`);
       return await response.json();
     } catch (error) {
       console.error("Erro ao buscar total de gasto por categoria:", error);
@@ -213,7 +200,6 @@ export default function Graficos() {
     <SafeAreaView style={[styles.container, theme.container]}>
       <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
 
-      {/* HEADER */}
       <View style={styles.header}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1, justifyContent: "center" }}>
           <Text style={[styles.title, theme.text]}> Análise Financeira </Text>
@@ -223,10 +209,9 @@ export default function Graficos() {
           <Text style={styles.voltar}>Voltar</Text>
         </TouchableOpacity>
       </View>
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monthSelector}> {MESES.map((mes, index) => (
-        <TouchableOpacity key={index}
-        onPress={() => setMesSelecionado(index)}
-        style={[ styles.monthButton, mesSelecionado === index && { backgroundColor: theme.primary.color,},]}>
+        <TouchableOpacity key={index} onPress={() => setMesSelecionado(index)} style={[ styles.monthButton, mesSelecionado === index && { backgroundColor: theme.primary.color,},]}>
           <Text style={[ styles.monthText, mesSelecionado === index && { color: "#FFF" },]}> {mes.substring(0, 3)} </Text>
         </TouchableOpacity> ))}
       </ScrollView>
@@ -260,11 +245,9 @@ export default function Graficos() {
 
                 return (
                   <View key={index} style={styles.barWrapper}>
-                    <Text style={[styles.barValue, theme.text]}>
-                      R$ {item.total}
-                    </Text>
-                    <View style={[styles.bar, { height: altura }]} />
-                    <View style={{ marginTop: 8 }}>
+                    <Text style={[styles.barValue, theme.text]}> R$ {item.total}</Text>
+                     <View style={[styles.bar, { height: altura }]} />
+                     <View style={{ marginTop: 8 }}>
                       <Icon size={18} color={theme.text.color} />
                     </View>
                   </View>
@@ -373,11 +356,11 @@ const styles = StyleSheet.create({
   barWrapper: {
     alignItems: "center",
     marginRight: 12,
-    width: 45,
+    width: 50,
   },
 
   bar: {
-    width: 28,
+    width: 26,
     backgroundColor: "#16a34a",
     borderRadius: 6,
   },
