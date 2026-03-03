@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
+  FlatList,
+  Dimensions,
 } from "react-native";
 import {
   DollarSign,
@@ -13,6 +15,8 @@ import {
   CreditCard,
   Receipt,
   Moon,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -23,6 +27,8 @@ import { menuItems } from "@/types/menu";
 import { AppRoute } from "@/types/routes";
 import { useTheme } from "@/types/themecontext";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
 type Card = {
   title: string;
   value: string;
@@ -31,8 +37,17 @@ type Card = {
   highlight?: boolean;
 };
 
+type Trimestre = {
+  id: number;
+  nome: string;
+  meses: string[];
+  indices: number[];
+  total: number;
+};
+
 export default function DashboardFinanceiro() {
   const { theme, toggleTheme } = useTheme();
+  const flatListRef = useRef<FlatList>(null);
 
   const [activeTab, setActiveTab] =
     useState<AppRoute>("/dashboard-financeiro");
@@ -41,8 +56,42 @@ export default function DashboardFinanceiro() {
   const [somaContasFixas, setSomaContasFixas] = useState(0);
   const [registroDiario, setRegistroDiario] = useState(0);
   const [totalPorMes, setTotalPorMes] = useState<Record<string, number>>({});
+  const [trimestreAtual, setTrimestreAtual] = useState(0);
 
   const anoAtual = new Date().getFullYear();
+
+  /* ================= TRIMESTRES ================= */
+
+  const trimestres: Trimestre[] = [
+    {
+      id: 1,
+      nome: "1º Trimestre",
+      meses: ["Jan", "Fev", "Mar"],
+      indices: [0, 1, 2],
+      total: 0,
+    },
+    {
+      id: 2,
+      nome: "2º Trimestre",
+      meses: ["Abr", "Mai", "Jun"],
+      indices: [3, 4, 5],
+      total: 0,
+    },
+    {
+      id: 3,
+      nome: "3º Trimestre",
+      meses: ["Jul", "Ago", "Set"],
+      indices: [6, 7, 8],
+      total: 0,
+    },
+    {
+      id: 4,
+      nome: "4º Trimestre",
+      meses: ["Out", "Nov", "Dez"],
+      indices: [9, 10, 11],
+      total: 0,
+    },
+  ];
 
   /* ================= SALÁRIO ================= */
 
@@ -183,19 +232,124 @@ export default function DashboardFinanceiro() {
     },
   ];
 
-  /* ================= GRÁFICO MANUAL ================= */
+  /* ================= DADOS DOS TRIMESTRES ================= */
 
-  const meses = [
-    "Jan", "Fev", "Mar", "Abr",
-    "Mai", "Jun", "Jul", "Ago",
-    "Set", "Out", "Nov", "Dez",
-  ];
+  const trimestresComDados = trimestres.map((trimestre) => {
+    const total = trimestre.indices.reduce((acc, mesIndex) => {
+      const mesNumero = mesIndex + 1;
+      return acc + (Number(totalPorMes[String(mesNumero)]) || 0);
+    }, 0);
 
-  const valoresGrafico = Array.from({ length: 12 }, (_, i) =>
-    Number(totalPorMes[String(i + 1)] || 0)
+    return {
+      ...trimestre,
+      total,
+    };
+  });
+
+  const maiorValorTrimestre = Math.max(
+    ...trimestresComDados.map((t) => t.total),
+    1
   );
 
-  const maiorValor = Math.max(...valoresGrafico, 1);
+  const irParaTrimestre = (index: number) => {
+    if (index >= 0 && index < trimestresComDados.length) {
+      setTrimestreAtual(index);
+      flatListRef.current?.scrollToIndex({
+        index,
+        animated: true,
+      });
+    }
+  };
+
+  const renderTrimestre = ({ item }: { item: Trimestre & { total: number } }) => {
+    const valoresMeses = item.indices.map((mesIndex) => {
+      const mesNumero = mesIndex + 1;
+      return Number(totalPorMes[String(mesNumero)] || 0);
+    });
+
+    const maiorValorMes = Math.max(...valoresMeses, 1);
+
+    return (
+      <View style={[styles.trimestreContainer, { width: SCREEN_WIDTH - 32 }]}>
+        <Text style={[styles.trimestreTitle, theme.text]}>
+          {item.nome} - {anoAtual}
+        </Text>
+
+        <View style={styles.trimestreTotal}>
+          <Text style={[styles.trimestreTotalLabel, theme.subText]}>
+            Total do Trimestre
+          </Text>
+          <Text style={[styles.trimestreTotalValue, theme.text]}>
+            {formatarMoeda(item.total)}
+          </Text>
+        </View>
+
+        <View style={styles.mesesContainer}>
+          {item.meses.map((mes, index) => {
+            const valor = valoresMeses[index];
+            const larguraPercentual = (valor / maiorValorMes) * 100;
+
+            return (
+              <View key={index} style={styles.mesRow}>
+                <Text style={[styles.mesLabel, theme.text]}>{mes}</Text>
+
+                <View style={styles.mesBarBackground}>
+                  <View
+                    style={[
+                      styles.mesBarFill,
+                      { width: `${larguraPercentual}%` },
+                    ]}
+                  />
+                </View>
+
+                <Text style={[styles.mesValue, theme.subText]}>
+                  {formatarMoeda(valor)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.comparativoContainer}>
+          <Text style={[styles.comparativoTitle, theme.subText]}>
+            Comparativo com outros trimestres
+          </Text>
+
+          {trimestresComDados.map((trimestre, idx) => {
+            if (idx === item.id - 1) return null; 
+
+            const percentual =
+              item.total > 0
+                ? ((trimestre.total / item.total) * 100).toFixed(1)
+                : "0";
+
+            return (
+              <View key={trimestre.id} style={styles.comparativoRow}>
+                <Text style={[styles.comparativoNome, theme.text]}>
+                  {trimestre.nome}
+                </Text>
+                <View style={styles.comparativoBarBackground}>
+                  <View
+                    style={[
+                      styles.comparativoBarFill,
+                      {
+                        width: `${Math.min(Number(percentual), 100)}%`,
+                        backgroundColor:
+                          trimestre.total > item.total ? "#ef4444" : "#3b82f6",
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.comparativoValor, theme.subText]}>
+                  {formatarMoeda(trimestre.total)}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.container, theme.container]}>
@@ -209,7 +363,10 @@ export default function DashboardFinanceiro() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView 
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.grid}>
           {cards.map((card, index) => {
             const Icon = card.icon;
@@ -250,38 +407,83 @@ export default function DashboardFinanceiro() {
             );
           })}
         </View>
+        <View style={styles.trimestresSection}>
+          <View style={styles.trimestresHeader}>
+            <Text style={[styles.sectionTitle, theme.text]}>
+              Gastos por Trimestre
+            </Text>
 
-        {/* ================= GRÁFICO ================= */}
+            <View style={styles.trimestresNav}>
+              <TouchableOpacity
+                onPress={() => irParaTrimestre(trimestreAtual - 1)}
+                disabled={trimestreAtual === 0}
+                style={[
+                  styles.navButton,
+                  trimestreAtual === 0 && styles.navButtonDisabled,
+                ]}
+              >
+                <ChevronLeft
+                  size={24}
+                  color={trimestreAtual === 0 ? "#9ca3af" : theme.text.color}
+                />
+              </TouchableOpacity>
 
-        <View style={styles.chartContainer}>
-          <Text style={[styles.chartTitle, theme.text]}>
-            Gastos por Mês ({anoAtual})
-          </Text>
+              <TouchableOpacity
+                onPress={() => irParaTrimestre(trimestreAtual + 1)}
+                disabled={trimestreAtual === trimestresComDados.length - 1}
+                style={[
+                  styles.navButton,
+                  trimestreAtual === trimestresComDados.length - 1 &&
+                    styles.navButtonDisabled,
+                ]}
+              >
+                <ChevronRight
+                  size={24}
+                  color={
+                    trimestreAtual === trimestresComDados.length - 1
+                      ? "#9ca3af"
+                      : theme.text.color
+                  }
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
 
-          {valoresGrafico.map((valor, index) => {
-            const larguraPercentual = (valor / maiorValor) * 100;
-
-            return (
-              <View key={index} style={styles.barRow}>
-                <Text style={[styles.monthLabel, theme.subText]}>
-                  {meses[index]}
-                </Text>
-
-                <View style={styles.barBackground}>
-                  <View
-                    style={[
-                      styles.barFill,
-                      { width: `${larguraPercentual}%` },
-                    ]}
-                  />
-                </View>
-
-                <Text style={[styles.valueLabel, theme.text]}>
-                  {formatarMoeda(valor)}
-                </Text>
-              </View>
-            );
-          })}
+          <FlatList
+            ref={flatListRef}
+            data={trimestresComDados}
+            renderItem={renderTrimestre}
+            keyExtractor={(item) => item.id.toString()}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(event) => {
+              const newIndex = Math.round(
+                event.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32)
+              );
+              setTrimestreAtual(newIndex);
+            }}
+            snapToInterval={SCREEN_WIDTH - 32}
+            decelerationRate="fast"
+            contentContainerStyle={styles.trimestresList}
+          />
+          <View style={styles.paginationDots}>
+            {trimestresComDados.map((_, index) => (
+              <TouchableOpacity
+                key={index}
+                onPress={() => irParaTrimestre(index)}
+                style={[
+                  styles.paginationDot,
+                  {
+                    backgroundColor:
+                      index === trimestreAtual
+                        ? theme.text.color
+                        : theme.subText.color + "40",
+                  },
+                ]}
+              />
+            ))}
+          </View>
         </View>
       </ScrollView>
 
@@ -298,9 +500,6 @@ export default function DashboardFinanceiro() {
     </SafeAreaView>
   );
 }
-
-/* ================= STYLES ================= */
-
 const styles = StyleSheet.create({
   container: { flex: 1 },
 
@@ -356,44 +555,161 @@ const styles = StyleSheet.create({
     color: "#16a34a",
   },
 
-  chartContainer: {
+  trimestresSection: {
     marginTop: 24,
     marginBottom: 40,
   },
 
-  chartTitle: {
-    fontSize: 16,
+  trimestresHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+  },
+
+  trimestresNav: {
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  navButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(0,0,0,0.05)",
+  },
+
+  navButtonDisabled: {
+    opacity: 0.5,
+  },
+
+  trimestresList: {
+    paddingRight: 16,
+  },
+
+  trimestreContainer: {
+    marginRight: 16,
+    padding: 16,
+    backgroundColor: "rgba(0,0,0,0.02)",
+    borderRadius: 20,
+  },
+
+  trimestreTitle: {
+    fontSize: 20,
     fontWeight: "700",
     marginBottom: 16,
   },
 
-  barRow: {
-    marginBottom: 14,
+  trimestreTotal: {
+    alignItems: "center",
+    marginBottom: 24,
+    padding: 16,
+    backgroundColor: "rgba(0,0,0,0.03)",
+    borderRadius: 12,
   },
 
-  monthLabel: {
-    fontSize: 16,
+  trimestreTotalLabel: {
+    fontSize: 14,
     marginBottom: 4,
   },
 
-  barBackground: {
-    width: "100%",
-    height: 14,
-    backgroundColor: "#e5e7eb",
-    borderRadius: 8,
-    overflow: "hidden",
+  trimestreTotalValue: {
+    fontSize: 24,
+    fontWeight: "700",
   },
 
-  barFill: {
+  mesesContainer: {
+    marginBottom: 24,
+  },
+
+  mesRow: {
+    marginBottom: 12,
+  },
+
+  mesLabel: {
+    fontSize: 16,
+    marginBottom: 2,
+    fontWeight: "600",
+  },
+
+  mesBarBackground: {
+    width: "100%",
+    height: 12,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 6,
+    overflow: "hidden",
+    marginVertical: 2,
+  },
+
+  mesBarFill: {
     height: "100%",
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: "#16a34a",
   },
 
-  valueLabel: {
-    marginTop: 4,
+  mesValue: {
     fontSize: 12,
-    fontWeight: "600",
+    marginTop: 2,
+    textAlign: "right",
+  },
+
+  comparativoContainer: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(0,0,0,0.1)",
+  },
+
+  comparativoTitle: {
+    fontSize: 14,
+    marginBottom: 12,
+  },
+
+  comparativoRow: {
+    marginBottom: 12,
+  },
+
+  comparativoNome: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+
+  comparativoBarBackground: {
+    width: "100%",
+    height: 10,
+    backgroundColor: "#e5e7eb",
+    borderRadius: 5,
+    overflow: "hidden",
+    marginVertical: 2,
+  },
+
+  comparativoBarFill: {
+    height: "100%",
+    borderRadius: 5,
+  },
+
+  comparativoValor: {
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: "right",
+  },
+
+  paginationDots: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 16,
+    gap: 8,
+  },
+
+  paginationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
 
   bottomMenu: {

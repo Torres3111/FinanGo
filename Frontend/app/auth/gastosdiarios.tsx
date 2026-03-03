@@ -42,6 +42,13 @@ const GastosDiarios = () => {
 
   const selectedMonth = "Fevereiro de 2026";
 
+  const ordenarGastosPorData = (gastosArray: GastoDiario[]) => {
+    return [...gastosArray].sort((a, b) => {
+      const dataA = new Date(a.data_registro).getTime();
+      const dataB = new Date(b.data_registro).getTime();
+      return dataB - dataA;
+    });
+  };
 
   async function buscarGastos() {
     try {
@@ -58,7 +65,8 @@ const GastosDiarios = () => {
       if (!response.ok)
         throw new Error(data.error || "Erro ao buscar gastos.");
 
-      setGastos(data.gastos || []);
+      const gastosOrdenados = ordenarGastosPorData(data.gastos || []);
+      setGastos(gastosOrdenados);
     } catch (error: any) {
       Alert.alert("Erro", error.message);
     }
@@ -67,7 +75,6 @@ const GastosDiarios = () => {
   useEffect(() => {
     buscarGastos();
   }, []);
-
 
   async function criarGastoDiario(payload: any) {
     const response = await fetch(
@@ -87,25 +94,23 @@ const GastosDiarios = () => {
     return data.gasto_diario;
   }
 
-
   async function editarGastoDiario(id: string, payload: any) {
-  const response = await fetch(
-    `${API_URL}/registro/alterar/${id}`,
-    {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    }
-  );
+    const response = await fetch(
+      `${API_URL}/registro/alterar/${id}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    );
 
-  const data = await response.json();
+    const data = await response.json();
 
-  if (!response.ok)
-    throw new Error(data.error || "Erro ao editar.");
+    if (!response.ok)
+      throw new Error(data.error || "Erro ao editar.");
 
-  return data.gasto; 
-}
-
+    return data.gasto; 
+  }
 
   async function excluirGastoDiario(id: string) {
     Alert.alert(
@@ -123,9 +128,10 @@ const GastosDiarios = () => {
                 { method: "DELETE" }
               );
 
-              setGastos((prev) =>
-                prev.filter((g) => g.id !== Number(id))
-              );
+              setGastos((prev) => {
+                const novosGastos = prev.filter((g) => g.id !== Number(id));
+                return ordenarGastosPorData(novosGastos);
+              });
             } catch {
               Alert.alert("Erro", "Falha ao excluir.");
             }
@@ -176,22 +182,21 @@ const GastosDiarios = () => {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
         >
-          
           <View style={[styles.totalCard, theme.card]}>
             <View style={styles.totalRow}>
               <View>
                 <Text style={[styles.totalLabel, theme.subText]}>
-                  Total gasto em Registros Diários 🥲
-                  </Text>
-                  <Text style={[styles.totalValue, theme.text]}>
-                    R$ {totalMes.toFixed(2).replace(".", ",")}
-                  </Text>
+                  Total gasto em Registros Diários
+                </Text>
+                <Text style={[styles.totalValue, theme.text]}>
+                  R$ {totalMes.toFixed(2).replace(".", ",")}
+                </Text>
               </View>
               <TouchableOpacity
-              style={styles.addButton}
-              onPress={() => router.push("/auth/graficos")}
+                style={styles.addButton}
+                onPress={() => router.push("/auth/graficos")}
               >
-                <Feather name ="table" size={18} color="#FFF" />
+                <Feather name="table" size={18} color="#FFF" />
                 <Text style={styles.addButtonText}>
                   Ver Gráficos
                 </Text>
@@ -227,6 +232,15 @@ const GastosDiarios = () => {
                     ]}
                   >
                     {gasto.categoria}
+                  </Text>
+                  {/* Opcional: mostra a data do gasto */}
+                  <Text
+                    style={[
+                      styles.gastoData,
+                      theme.subText,
+                    ]}
+                  >
+                    {new Date(gasto.data_registro).toLocaleDateString('pt-BR')}
                   </Text>
                 </View>
 
@@ -278,43 +292,36 @@ const GastosDiarios = () => {
         onClose={() => setModalVisible(false)}
         onSave={async (data) => {
           try {
-            const userId =
-              await AsyncStorage.getItem("id");
+            const userId = await AsyncStorage.getItem("id");
 
             const payload = {
               user_id: Number(userId),
               descricao: data.descricao,
               valor: data.valor,
               categoria: data.categoria,
-              data_registro: new Date(
-                data.data_registro
-              )
+              data_registro: new Date(data.data_registro)
                 .toISOString()
                 .split("T")[0],
             };
 
             if (gastoSelecionado) {
-              const atualizado =
-                await editarGastoDiario(
-                  String(gastoSelecionado.id),
-                  payload
-                );
-
-              setGastos((prev) =>
-                prev.map((g) =>
-                  g.id === gastoSelecionado.id
-                    ? atualizado
-                    : g
-                )
+              const atualizado = await editarGastoDiario(
+                String(gastoSelecionado.id),
+                payload
               );
-            } else {
-              const novo =
-                await criarGastoDiario(payload);
 
-              setGastos((prev) => [
-                ...prev,
-                novo,
-              ]);
+              setGastos((prev) => {
+                const novosGastos = prev.map((g) =>
+                  g.id === gastoSelecionado.id ? atualizado : g
+                );
+                return ordenarGastosPorData(novosGastos);
+              });
+            } else {
+              const novo = await criarGastoDiario(payload);
+              setGastos((prev) => {
+                const novosGastos = [...prev, novo];
+                return ordenarGastosPorData(novosGastos);
+              });
             }
 
             setModalVisible(false);
@@ -323,17 +330,18 @@ const GastosDiarios = () => {
           }
         }}
       />
-       {/* Menu inferior */}
-            <View style={styles.bottomMenu}>
-              <MenuCard
-                items={menuItems}
-                active={activeTab}
-                onNavigate={(route) => {
-                  setActiveTab(route);
-                  router.push(`../auth${route}`);
-                }}
-              />
-            </View>
+      
+      {/* Menu inferior */}
+      <View style={styles.bottomMenu}>
+        <MenuCard
+          items={menuItems}
+          active={activeTab}
+          onNavigate={(route) => {
+            setActiveTab(route);
+            router.push(`../auth${route}`);
+          }}
+        />
+      </View>
     </SafeAreaView>
   );
 };
@@ -389,10 +397,10 @@ const styles = StyleSheet.create({
   },
 
   totalRow: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  alignItems: "center",
-},
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
 
   totalLabel: { fontSize: 14 },
   totalValue: {
@@ -417,6 +425,11 @@ const styles = StyleSheet.create({
   gastoCategoria: {
     fontSize: 13,
     marginTop: 4,
+  },
+
+  gastoData: {
+    fontSize: 11,
+    marginTop: 2,
   },
 
   gastoValor: {

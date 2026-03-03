@@ -189,7 +189,7 @@ const Contas: React.FC = () => {
   return (
     <SafeAreaView
       style={[styles.container, theme.container]}
-      edges={["top", "bottom"]}
+      edges={["top"]} 
     >
       <StatusBar
         barStyle={darkMode ? "light-content" : "dark-content"}
@@ -224,29 +224,28 @@ const Contas: React.FC = () => {
         </TouchableOpacity>
       </View>
 
-      <FlatList
-        data={contas}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={renderConta}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 24 }}
-      />
+      <View style={styles.content}>
+        <FlatList
+          data={contas}
+          keyExtractor={(item) => item.id.toString()}
+          renderItem={renderConta}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ 
+            paddingBottom: 16 
+          }}
+        />
+      </View>
 
-     {/* Menu Inferior */}
-           <View
-             style={[
-               styles.menuWrapper, theme.container
-             ]}
-           >
-             <MenuCard
-               items={menuItems}
-               active={activeTab}
-               onNavigate={(route) => {
-                 setActiveTab(route);
-                 router.push(`../auth${route}`);
-               }}
-             />
-           </View>
+      <View style={styles.menuContainer}>
+        <MenuCard
+          items={menuItems}
+          active={activeTab}
+          onNavigate={(route) => {
+            setActiveTab(route);
+            router.push(`../auth${route}`);
+          }}
+        />
+      </View>
 
       {/* ===== Modal Criar / Editar ===== */}
       <ContaFixaModal
@@ -281,6 +280,8 @@ const STATUS_BAR_HEIGHT =
   Platform.OS === "android"
     ? StatusBar.currentHeight ?? 10
     : 0; 
+
+const MENU_HEIGHT = 70;
 
 const styles = StyleSheet.create({
   container: {
@@ -329,6 +330,12 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
 
+  menuContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: Platform.OS === "ios" ? 8 : 16,
+    backgroundColor: "transparent",
+  },
+
   card: {
     borderWidth: 0.2,
     borderRadius: 20,
@@ -373,12 +380,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginTop: 16,
     fontWeight: "500",
-  },
-
-  menuWrapper: {
-    position: "absolute",
-    bottom: 8,
-    left: 16,
-    right: 16,
   },
 });

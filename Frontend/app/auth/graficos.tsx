@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -32,7 +32,6 @@ export default function Graficos() {
   const { darkMode } = useTheme();
   const theme = darkMode ? darkTheme : lightTheme;
 
-  const [modalInfoVisible, setModalInfoVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth());
 
@@ -88,7 +87,9 @@ export default function Graficos() {
       if (!userId) throw new Error("UserId não encontrado");
 
       const response = await fetch(
-        `${API_URL}/registro/total-gasto-mes/${Number(userId)}/${mes}/2026`);
+        `${API_URL}/registro/total-gasto-mes/${Number(userId)}/${mes}/2026`
+      );
+
       return await response.json();
     } catch (error) {
       console.error("Erro ao buscar total de gasto por mês:", error);
@@ -104,7 +105,9 @@ export default function Graficos() {
       if (!userId) throw new Error("UserId não encontrado");
 
       const response = await fetch(
-        `${API_URL}/registro/total-gasto-categoria/${Number(userId)}/${mes}/2026`);
+        `${API_URL}/registro/total-gasto-categoria/${Number(userId)}/${mes}/2026`
+      );
+
       return await response.json();
     } catch (error) {
       console.error("Erro ao buscar total de gasto por categoria:", error);
@@ -137,86 +140,118 @@ export default function Graficos() {
   }, [mesSelecionado]);
 
   const carregarDados = async () => {
-  try {
-    setLoading(true);
+    try {
+      setLoading(true);
 
-    const mesAPI = mesSelecionado + 1;
+      const mesAPI = mesSelecionado + 1;
 
-    const [totalMesData, categoriaData, percentualData] =
-      await Promise.all([
-        fetchTotalGastoMes(mesAPI),
-        fetchTotalGastoCategoria(mesAPI),
-        fetchPercentualGastoCategoria(mesAPI),
-      ]);
+      const [totalMesData, categoriaData, percentualData] =
+        await Promise.all([
+          fetchTotalGastoMes(mesAPI),
+          fetchTotalGastoCategoria(mesAPI),
+          fetchPercentualGastoCategoria(mesAPI),
+        ]);
 
-    if (totalMesData && typeof totalMesData.total === "number") {
-      setTotalMes(totalMesData.total);
-      setQuantidadeGastos(totalMesData.gastos);
-    } else {
+      if (totalMesData && typeof totalMesData.total === "number") {
+        setTotalMes(totalMesData.total);
+        setQuantidadeGastos(totalMesData.gastos);
+      } else {
+        setTotalMes(0);
+        setQuantidadeGastos(0);
+      }
+
+      const categoriasObj = categoriaData?.total_por_categoria ?? {};
+
+      const categoriasFormatadas = categorias.map((cat) => ({
+        nome: cat,
+        total: categoriasObj[cat] ?? 0,
+      }));
+
+      setDadosCategoria(categoriasFormatadas);
+
+      const percentualObj = percentualData?.percentual_por_categoria ?? {};
+
+      const percentuaisFormatados = categorias.map((cat) => ({
+        nome: cat,
+        percentual: percentualObj[cat] ?? 0,
+      }));
+
+      setDadosPercentuais(percentuaisFormatados);
+
+    } catch (error) {
+      console.log("Erro ao carregar dados:", error);
+
       setTotalMes(0);
       setQuantidadeGastos(0);
+      setDadosCategoria(
+        categorias.map((cat) => ({ nome: cat, total: 0 }))
+      );
+      setDadosPercentuais(
+        categorias.map((cat) => ({ nome: cat, percentual: 0 }))
+      );
+    } finally {
+      setLoading(false);
     }
+  };
 
-    const categoriasObj =
-      categoriaData?.total_por_categoria ?? {};
+  const dadosCategoriaOrdenados = useMemo(() => {
+    return dadosCategoria
+      .filter((item) => item.total > 0)
+      .sort((a, b) => b.total - a.total);
+  }, [dadosCategoria]);
 
-    const categoriasFormatadas = categorias.map((cat) => ({
-      nome: cat,
-      total: categoriasObj[cat] ?? 0,
-    }));
+  const dadosPercentuaisOrdenados = useMemo(() => {
+    return dadosPercentuais
+      .filter((item) => item.percentual > 0)
+      .sort((a, b) => b.percentual - a.percentual);
+  }, [dadosPercentuais]);
 
-    setDadosCategoria(categoriasFormatadas);
+  const maxValor =
+    dadosCategoriaOrdenados.length > 0
+      ? Math.max(...dadosCategoriaOrdenados.map((c) => c.total))
+      : 1;
 
-    const percentualObj =
-      percentualData?.percentual_por_categoria ?? {};
-
-    const percentuaisFormatados = categorias.map((cat) => ({
-      nome: cat,
-      percentual: percentualObj[cat] ?? 0,
-    }));
-
-    setDadosPercentuais(percentuaisFormatados);
-
-  } catch (error) {
-    console.log("Erro ao carregar dados:", error);
-
-    // fallback total
-    setTotalMes(0);
-    setQuantidadeGastos(0);
-    setDadosCategoria(
-      categorias.map((cat) => ({ nome: cat, total: 0 }))
-    );
-    setDadosPercentuais(
-      categorias.map((cat) => ({ nome: cat, percentual: 0 }))
-    );
-  } finally {
-    setLoading(false);
-  }
-};
-
-  const maxValor = Math.max(...dadosCategoria.map((c) => c.total), 1);
+  const temGastos = dadosCategoriaOrdenados.length > 0;
 
   return (
     <SafeAreaView style={[styles.container, theme.container]}>
       <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
 
       <View style={styles.header}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1, justifyContent: "center" }}>
-          <Text style={[styles.title, theme.text]}> Análise Financeira </Text>
-        </View>
-        
+        <Text style={[styles.title, theme.text]}>
+          Análise Financeira
+        </Text>
+
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.voltar}>Voltar</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monthSelector}> {MESES.map((mes, index) => (
-        <TouchableOpacity key={index} onPress={() => setMesSelecionado(index)} style={[ styles.monthButton, mesSelecionado === index && { backgroundColor: theme.primary.color,},]}>
-          <Text style={[ styles.monthText, mesSelecionado === index && { color: "#FFF" },]}> {mes.substring(0, 3)} </Text>
-        </TouchableOpacity> ))}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monthSelector}>
+        {MESES.map((mes, index) => (
+          <TouchableOpacity
+            key={index}
+            onPress={() => setMesSelecionado(index)}
+            style={[
+              styles.monthButton,
+              mesSelecionado === index && { backgroundColor: theme.primary.color },
+            ]}
+          >
+            <Text
+              style={[
+                styles.monthText,
+                mesSelecionado === index && { color: "#FFF" },
+              ]}
+            >
+              {mes.substring(0, 3)}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
       <ScrollView contentContainerStyle={styles.content}>
+
+        {/* TOTAL */}
         <View style={[styles.card, theme.card]}>
           <Text style={[styles.cardTitle, theme.text]}>
             Total em {MESES[mesSelecionado]}
@@ -224,82 +259,99 @@ export default function Graficos() {
           <Text style={[styles.valorGrande, theme.text]}>
             R$ {totalMes.toFixed(2)}
           </Text>
-          <Text style={[theme.text]}>
+          <Text style={theme.text}>
             {quantidadeGastos} lançamentos
           </Text>
         </View>
 
+        {/* GRÁFICO DE BARRAS */}
         <View style={[styles.card, theme.card]}>
           <Text style={[styles.cardTitle, theme.text]}>
             Gastos por Categoria
           </Text>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.chartContainer}>
-              {dadosCategoria.map((item, index) => {
-                const altura = (item.total / maxValor) * 160;
-                const Icon =
-                  iconesCategoria[
-                    item.nome as keyof typeof iconesCategoria
-                  ];
+          {temGastos ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+              <View style={styles.chartContainer}>
+                {dadosCategoriaOrdenados.map((item, index) => {
+                  const altura = (item.total / maxValor) * 160;
+                  const Icon =
+                    iconesCategoria[item.nome as keyof typeof iconesCategoria];
 
-                return (
-                  <View key={index} style={styles.barWrapper}>
-                    <Text style={[styles.barValue, theme.text]}> R$ {item.total}</Text>
-                     <View style={[styles.bar, { height: altura }]} />
-                     <View style={{ marginTop: 8 }}>
-                      <Icon size={18} color={theme.text.color} />
+                  return (
+                    <View key={index} style={styles.barWrapper}>
+                      <Text style={[styles.barValue, theme.text]}>
+                        R$ {item.total.toFixed(2)}
+                      </Text>
+                      <View
+                        style={[
+                          styles.bar,
+                          { height: altura, backgroundColor: theme.primary.color },
+                        ]}
+                      />
+                      <View style={{ marginTop: 8 }}>
+                        <Icon size={18} color={theme.text.color} />
+                      </View>
+                      <Text style={[styles.monthLabel, theme.text]}>
+                        {item.nome}
+                      </Text>
                     </View>
-                  </View>
-                );
-              })}
-            </View>
-          </ScrollView>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          ) : (
+            <Text style={[theme.text, styles.emptyText]}>
+              Nenhum gasto registrado neste mês
+            </Text>
+          )}
         </View>
 
+        {/* PERCENTUAL */}
         <View style={[styles.card, theme.card]}>
           <Text style={[styles.cardTitle, theme.text]}>
             Percentual por Categoria
           </Text>
 
-          {dadosPercentuais.map((item, index) => {
-            const Icon =
-              iconesCategoria[
-                item.nome as keyof typeof iconesCategoria
-              ];
+          {dadosPercentuaisOrdenados.length > 0 ? (
+            dadosPercentuaisOrdenados.map((item, index) => {
+              const Icon =
+                iconesCategoria[item.nome as keyof typeof iconesCategoria];
 
-            return (
-              <View key={index} style={styles.percentualLinha}>
-                <View style={styles.percentualHeader}>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <Icon size={18} color={theme.text.color} />
-                    <Text style={[styles.percentualLabel, theme.text]}>
-                      {item.nome}
+              return (
+                <View key={index} style={styles.percentualLinha}>
+                  <View style={styles.percentualHeader}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <Icon size={18} color={theme.text.color} />
+                      <Text style={[styles.percentualLabel, theme.text]}>
+                        {item.nome}
+                      </Text>
+                    </View>
+
+                    <Text style={[styles.percentualNumero, theme.text]}>
+                      {item.percentual.toFixed(1)}%
                     </Text>
                   </View>
 
-                  <Text style={[styles.percentualNumero, theme.text]}>
-                    {item.percentual.toFixed(1)}%
-                  </Text>
+                  <View style={styles.percentualBarBackground}>
+                    <View
+                      style={[
+                        styles.percentualBarFill,
+                        {
+                          width: `${item.percentual}%`,
+                          backgroundColor: theme.primary.color,
+                        },
+                      ]}
+                    />
+                  </View>
                 </View>
-
-                <View style={styles.percentualBarBackground}>
-                  <View
-                    style={[
-                      styles.percentualBarFill,
-                      { width: `${item.percentual}%` },
-                    ]}
-                  />
-                </View>
-              </View>
-            );
-          })}
+              );
+            })
+          ) : (
+            <Text style={[theme.text, styles.emptyText]}>
+              Nenhum percentual calculado
+            </Text>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -309,20 +361,15 @@ export default function Graficos() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 10, paddingBottom: 20 },
-
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 20,
   },
-
-  title: { fontSize: 20, fontWeight: "bold", marginTop: 15},
+  title: { fontSize: 20, fontWeight: "bold", marginTop: 15 },
   voltar: { color: "#16a34a", fontWeight: "600", marginTop: 15, marginRight: 10 },
-  icon: { marginTop: 15 },
-
   monthSelector: { marginBottom: 10 },
-
   monthButton: {
     paddingVertical: 4,
     paddingHorizontal: 16,
@@ -330,107 +377,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#e4e4e4",
     marginRight: 8,
   },
-
   monthText: { fontWeight: "600", color: "#333" },
-
-  card: {
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 20,
-  },
-
-  cardTitle: { fontSize: 16, fontWeight: "600" },
-
-  valorGrande: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginTop: 10,
-  },
-
-  chartContainer: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingVertical: 10,
-  },
-
-  barWrapper: {
-    alignItems: "center",
-    marginRight: 12,
-    width: 50,
-  },
-
-  bar: {
-    width: 26,
-    backgroundColor: "#16a34a",
-    borderRadius: 6,
-  },
-
-  barValue: {
-    fontSize: 12,
-    marginBottom: 6,
-    fontWeight: "600",
-  },
-
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
+  card: { padding: 16, borderRadius: 14, marginBottom: 20 },
+  cardTitle: { fontSize: 16, fontWeight: "600", marginBottom: 15 },
+  valorGrande: { fontSize: 24, fontWeight: "bold", marginTop: 10 },
+  chartContainer: { flexDirection: "row", alignItems: "flex-end", paddingVertical: 10 },
+  barWrapper: { alignItems: "center", marginRight: 12, width: 60 },
+  bar: { width: 26, borderRadius: 6 },
+  barValue: { fontSize: 12, marginBottom: 6, fontWeight: "600" },
+  monthLabel: { fontSize: 12, marginTop: 6, textAlign: "center" },
+  emptyText: { textAlign: "center", paddingVertical: 20, opacity: 0.6 },
   percentualLinha: { marginBottom: 16 },
-
-  percentualHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-
+  percentualHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
   percentualLabel: { fontSize: 14, fontWeight: "500" },
   percentualNumero: { fontSize: 14, fontWeight: "600" },
-
   percentualBarBackground: {
     height: 8,
     borderRadius: 6,
     backgroundColor: "rgba(150,150,150,0.15)",
     overflow: "hidden",
   },
-
-  percentualBarFill: {
-    height: "100%",
-    backgroundColor: "#16a34a",
-    borderRadius: 6,
-  },
-
-  linha: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 12,
-  },
-
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-
-  modalContainer: {
-    height: "37%",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-  },
-
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  monthLabel: {
-  fontSize: 12,
-  marginTop: 6,
-},
-
-  modalTitle: { fontSize: 18, fontWeight: "bold" },
-  label: { fontSize: 14, fontWeight: "500" },
+  percentualBarFill: { height: "100%", borderRadius: 6 },
 });
