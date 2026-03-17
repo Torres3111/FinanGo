@@ -1,4 +1,6 @@
+import token
 from flask import Blueprint, request, jsonify
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models import ContaFixa, RegistroDiario, Usuario
 from datetime import datetime
@@ -47,30 +49,31 @@ def login():
     senha_hash = data.get("senha_hash")
 
     if not nome or not senha_hash:
-        return jsonify({"error": "Dados obrigatórios ausentes. Yoooo"}), 400
+        return jsonify({"error": "Dados obrigatórios ausentes."}), 400
 
     usuario = Usuario.query.filter_by(nome=nome).first()
 
     if not usuario or not usuario.check_password(senha_hash):
         return jsonify({"error": "Credenciais inválidas"}), 401
+    
+    token = create_access_token(identity=str(usuario.id))
 
     return jsonify({
         "message": "Login realizado com sucesso",
         "usuario": {
             "id": usuario.id,
             "nome": usuario.nome,
-            "email": usuario.email
+            "email": usuario.email,
+            "token": token
         }
     }), 200
 ############################## LOGIN DE USUÁRIO ##############################
 
 ############################## BUSCA INFORMAÇÕES DE USUÁRIO ##############################
 @auth_bp.route("/auth/info", methods=["GET"])
+@jwt_required()
 def get_user_info():
-    user_id = request.args.get("user_id", type=int)
-
-    if user_id is None:
-        return jsonify({"error": "ID do usuário é obrigatório"}), 400
+    user_id = int(get_jwt_identity())
 
     usuario = db.session.get(Usuario, user_id)
 
@@ -89,6 +92,7 @@ def get_user_info():
 
 ############################## ALTERA INFORMAÇÕES DE USUÁRIO ##############################
 @auth_bp.route("/auth/alterar", methods=["PUT"])
+@jwt_required()
 def update_user():
     data = request.get_json()
     user_id = data.get("id")
@@ -118,6 +122,7 @@ dashboard_bp = Blueprint(
 )
 
 @dashboard_bp.route("/salariomensal", methods=["GET"])
+@jwt_required()
 def get_salario_mensal():
     user_id = request.args.get("user_id", type=int)
 
@@ -136,6 +141,7 @@ def get_salario_mensal():
 
 ############################## SOMA CONTAS FIXAS PARA DASHBOARD ##############################
 @dashboard_bp.route("/somacontasfixas", methods=["GET"])
+@jwt_required()
 def soma_contas_fixas():
     user_id = request.args.get("user_id", type=int)
 
@@ -161,6 +167,7 @@ contas_fixas_bp = Blueprint(
     url_prefix="/contas-fixas"
 )
 @contas_fixas_bp.route("/create", methods=["POST"])
+@jwt_required()
 def create_conta_fixa():
     data = request.get_json()
 
@@ -198,6 +205,7 @@ def create_conta_fixa():
 
 ############################# LISTAR CONTAS FIXAS #################################
 @contas_fixas_bp.route("/minhascontas", methods=["GET"])
+@jwt_required()
 def listar_contas_fixas():
     user_id = request.args.get("user_id", type=int)
 
@@ -229,6 +237,7 @@ def listar_contas_fixas():
 
 ############################# ALTERAR CONTAS FIXAS #################################
 @contas_fixas_bp.route("/alterar/<int:conta_id>", methods=["PUT"])
+@jwt_required()
 def alterar_conta_fixa(conta_id):
     data = request.get_json(silent=True)
 
@@ -269,6 +278,7 @@ def alterar_conta_fixa(conta_id):
     }), 200
 ############################# DELETAR CONTAS FIXAS #################################
 @contas_fixas_bp.route("/deletar/<int:conta_id>", methods=["DELETE"])
+@jwt_required()
 def deletar_conta_fixa(conta_id):
     conta_fixa = db.session.get(ContaFixa, conta_id)
     if not conta_fixa:
@@ -287,6 +297,7 @@ registro_bp = Blueprint(
 )
 
 @registro_bp.route("/adicionar", methods=["POST"])
+@jwt_required()
 def adicionar_gasto_diario():
     data = request.get_json(silent=True)
 
@@ -332,6 +343,7 @@ def adicionar_gasto_diario():
 
 ############################# MOSTRAR GASTOS #################################
 @registro_bp.route("/mostrar/<int:user_id>", methods=["GET"])
+@jwt_required()
 def mostrar_gastos(user_id):
     gastos = RegistroDiario.query.filter_by(usuario_id=user_id).all()
     if not gastos:
@@ -352,6 +364,7 @@ def mostrar_gastos(user_id):
 
 ############################# ALTERAR GASTOS #################################
 @registro_bp.route("/alterar/<int:gasto_id>", methods=["PUT"])
+@jwt_required()
 def alterar_gasto(gasto_id):
     gasto = db.session.get(RegistroDiario, gasto_id)
     if not gasto:
@@ -387,6 +400,7 @@ def alterar_gasto(gasto_id):
 
 ############################# DELETAR GASTOS #################################
 @registro_bp.route("/deletar/<int:gasto_id>", methods=["DELETE"])
+@jwt_required()
 def deletar_gasto(gasto_id):
     gasto = db.session.get(RegistroDiario, gasto_id)
     if not gasto:
@@ -401,6 +415,7 @@ def deletar_gasto(gasto_id):
 
 ############################# TOTAL GASTO POR MÊS/ANO #################################
 @registro_bp.route("/total-gasto-mes/<int:user_id>/<int:mes>/<int:ano>", methods=["GET"])
+@jwt_required()
 def total_gasto_mes(user_id, mes, ano):
     gastos = RegistroDiario.query.filter_by(usuario_id=user_id).filter(
         db.extract('month', RegistroDiario.data_registro) == mes,
@@ -419,6 +434,7 @@ def total_gasto_mes(user_id, mes, ano):
 
 ############################# TOTAL GASTO POR CATEGORIA MÊS/ANO #################################
 @registro_bp.route("/total-gasto-categoria/<int:user_id>/<int:mes>/<int:ano>", methods=["GET"])
+@jwt_required()
 def total_gasto_categoria(user_id, mes, ano):
     categorias = [ "Alimentação","Transporte","Lazer","Saúde","Educação","Compras","Outros"]
     resultados = db.session.query(
@@ -442,6 +458,7 @@ def total_gasto_categoria(user_id, mes, ano):
 
 ############################# PERCENTUAL DE CATEGORIA MÊS/ANO #################################
 @registro_bp.route("/percentual-gasto-categoria/<int:user_id>/<int:mes>/<int:ano>", methods=["GET"])
+@jwt_required()
 def percentual_gasto_categoria(user_id, mes, ano):
     gastos = RegistroDiario.query.filter_by(usuario_id=user_id).filter(
         db.extract('month', RegistroDiario.data_registro) == mes,
@@ -470,6 +487,7 @@ def percentual_gasto_categoria(user_id, mes, ano):
 
 ############################# TOTAL GASTO POR ANO #################################
 @registro_bp.route("/total-gasto-ano/<int:user_id>/<int:ano>", methods=["GET"])
+@jwt_required()
 def total_gasto_ano(user_id, ano):
     gastos = RegistroDiario.query.filter_by(usuario_id=user_id).filter(
         db.extract('year', RegistroDiario.data_registro) == ano
@@ -484,6 +502,7 @@ def total_gasto_ano(user_id, ano):
 
 ############################# TOTAL GASTO POR MÊS POR USUÁRIO DIVIDIDO POR MÊS DO ANO #################################
 @registro_bp.route("/total-gasto-mes-ano/<int:user_id>/<int:ano>", methods=["GET"])
+@jwt_required()
 def total_gasto_mes_ano(user_id, ano):
 
     gastos_diarios = (

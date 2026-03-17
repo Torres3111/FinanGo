@@ -12,6 +12,7 @@ import { Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 import MenuCard from "@/components/ui/menuCard";
 import { menuItems } from "@/types/menu";
@@ -32,6 +33,8 @@ type ContaFixa = {
   dia_vencimento: number;
   ativa: boolean;
 };
+
+const TOKEN_KEY = "auth_token";
 
 const Contas: React.FC = () => {
   const { darkMode } = useTheme();
@@ -58,10 +61,18 @@ const Contas: React.FC = () => {
     try {
       setLoading(true);
       const userId = await AsyncStorage.getItem("id");
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
 
-      const response = await fetch(
-        `${API_URL}/contas-fixas/minhascontas?user_id=${userId}`
-      );
+      if (!userId || !token) {
+        router.replace("../auth/login");
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/contas-fixas/minhascontas?user_id=${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const data = await response.json();
 
       setContas(data);
@@ -86,20 +97,32 @@ const Contas: React.FC = () => {
   }) {
     try {
       const userId = await AsyncStorage.getItem("id");
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+
+      if (!userId || !token) {
+        router.replace("../auth/login");
+        return;
+      }
 
       if (contaSelecionada) {
         await fetch(
           `${API_URL}/contas-fixas/alterar/${contaSelecionada.id}`,
           {
             method: "PUT",
-            headers: { "Content-Type": "application/json" },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
             body: JSON.stringify(data),
           }
         );
       } else {
         await fetch(`${API_URL}/contas-fixas/create`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({
             user_id: userId,
             ...data,
@@ -121,9 +144,21 @@ const Contas: React.FC = () => {
     if (!contaParaExcluir) return;
 
     try {
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+
+      if (!token) {
+        router.replace("../auth/login");
+        return;
+      }
+
       await fetch(
         `${API_URL}/contas-fixas/deletar/${contaParaExcluir.id}`,
-        { method: "DELETE" }
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       setConfirmVisible(false);

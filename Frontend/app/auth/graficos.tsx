@@ -22,11 +22,13 @@ import {
 } from "lucide-react-native";
 import API_URL from "@/config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 
 const MESES = [
   "Janeiro","Fevereiro","Março","Abril","Maio","Junho",
   "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
 ];
+const TOKEN_KEY = "auth_token";
 
 export default function Graficos() {
   const { darkMode } = useTheme();
@@ -57,13 +59,13 @@ export default function Graficos() {
   ];
 
   const iconesCategoria = {
-    Alimentação: Utensils,
-    Transporte: Car,
-    Lazer: Smile,
-    Saúde: HeartPulse,
-    Educação: GraduationCap,
-    Compras: ShoppingBag,
-    Outros: CircleEllipsis,
+    "Alimentacao": Utensils,
+    "Transporte": Car,
+    "Lazer": Smile,
+    "Saude": HeartPulse,
+    "Educacao": GraduationCap,
+    "Compras": ShoppingBag,
+    "Outros": CircleEllipsis,
   };
 
   type TotalGastoMesResponse = {
@@ -84,15 +86,19 @@ export default function Graficos() {
   ): Promise<TotalGastoMesResponse | null> => {
     try {
       const userId = await AsyncStorage.getItem("id");
-      if (!userId) throw new Error("UserId não encontrado");
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (!userId) throw new Error("UserId nao encontrado");
+      if (!token) throw new Error("Token nao encontrado");
 
-      const response = await fetch(
-        `${API_URL}/registro/total-gasto-mes/${Number(userId)}/${mes}/2026`
-      );
+      const response = await fetch(`${API_URL}/registro/total-gasto-mes/${Number(userId)}/${mes}/2026`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       return await response.json();
     } catch (error) {
-      console.error("Erro ao buscar total de gasto por mês:", error);
+      console.error("Erro ao buscar total de gasto por mes:", error);
       return null;
     }
   };
@@ -102,11 +108,15 @@ export default function Graficos() {
   ): Promise<TotalGastoCategoriaResponse | null> => {
     try {
       const userId = await AsyncStorage.getItem("id");
-      if (!userId) throw new Error("UserId não encontrado");
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (!userId) throw new Error("UserId nao encontrado");
+      if (!token) throw new Error("Token nao encontrado");
 
-      const response = await fetch(
-        `${API_URL}/registro/total-gasto-categoria/${Number(userId)}/${mes}/2026`
-      );
+      const response = await fetch(`${API_URL}/registro/total-gasto-categoria/${Number(userId)}/${mes}/2026`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       return await response.json();
     } catch (error) {
@@ -120,13 +130,17 @@ export default function Graficos() {
   ): Promise<PercentualGastoCategoriaResponse | null> => {
     try {
       const userId = await AsyncStorage.getItem("id");
-      if (!userId) throw new Error("UserId não encontrado");
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (!userId) throw new Error("UserId nao encontrado");
+      if (!token) throw new Error("Token nao encontrado");
 
-      const response = await fetch(
-        `${API_URL}/registro/percentual-gasto-categoria/${Number(
-          userId
-        )}/${mes}/2026`
-      );
+      const response = await fetch(`${API_URL}/registro/percentual-gasto-categoria/${Number(
+        userId
+      )}/${mes}/2026`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       return await response.json();
     } catch (error) {
@@ -219,7 +233,7 @@ export default function Graficos() {
 
       <View style={styles.header}>
         <Text style={[styles.title, theme.text]}>
-          Análise Financeira
+          AnÃƒÂ¡lise Financeira
         </Text>
 
         <TouchableOpacity onPress={() => router.back()}>

@@ -1,5 +1,4 @@
 import {
-  View,
   Text,
   TextInput,
   TouchableOpacity,
@@ -10,7 +9,10 @@ import { router } from "expo-router";
 import { useState } from "react";
 import API_URL from "../../config/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const TOKEN_KEY = "auth_token";
 
 ///////////////////////////// FUNÇÃO LOGIN /////////////////////////////
 export default function Login() {
@@ -27,7 +29,8 @@ export default function Login() {
     try {
       setLoading(true);
 
-      const response = await fetch(`${API_URL}/auth/login`, { // ROTA DO LOGIN
+      const response = await fetch(`${API_URL}/auth/login`, {
+        // ROTA DO LOGIN
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -39,17 +42,25 @@ export default function Login() {
       });
 
       const data = await response.json();
-      
 
       if (!response.ok) {
         Alert.alert("Erro", data.error || "Erro ao entrar");
         return;
       }
 
-      Alert.alert("Sucesso", "Login realizado com sucesso!");
+      const token = data?.usuario?.token;
+
+      if (!token) {
+        Alert.alert("Erro", "Token não recebido no login");
+        return;
+      }
+
+      await SecureStore.setItemAsync(TOKEN_KEY, token);
       await AsyncStorage.setItem("id", data.usuario.id.toString()); // Armazena o ID do usuário
+
+      Alert.alert("Sucesso", "Login realizado com sucesso!");
       router.replace("../auth/dashboard-financeiro"); // dashboard futuramente
-    } catch (error) {
+    } catch {
       Alert.alert("Erro", "Não foi possível conectar ao servidor");
     } finally {
       setLoading(false);

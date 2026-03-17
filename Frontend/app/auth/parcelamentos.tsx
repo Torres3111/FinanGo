@@ -17,6 +17,7 @@ import { useTheme } from "@/types/themecontext";
 import { darkTheme, lightTheme } from "@/types/themes";
 import Feather from "@expo/vector-icons/Feather";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import API_URL from "@/config/api";
 import ModalParcelamento from "./modalparcelamento";
 
@@ -38,16 +39,20 @@ const Parcelamentos = () => {
   const [parcelamentos, setParcelamentos] = useState<Parcelamento[]>([]);
   const [activeTab, setActiveTab] =
     useState<AppRoute>("/parcelamentos");
+  const TOKEN_KEY = "auth_token";
 
   async function buscarParcelamentos() {
     try {
       const userId = await AsyncStorage.getItem("id");
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
 
-      if (!userId) throw new Error("Usuário não encontrado.");
+      if (!userId || !token) throw new Error("Sessao invalida. Faca login novamente.");
 
-      const response = await fetch(
-        `${API_URL}`
-      );
+      const response = await fetch(`${API_URL}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await response.json();
 
@@ -75,9 +80,20 @@ const Parcelamentos = () => {
           style: "destructive",
           onPress: async () => {
             try {
+              const token = await SecureStore.getItemAsync(TOKEN_KEY);
+              if (!token) {
+                Alert.alert("Erro", "Sessao invalida. Faca login novamente.");
+                return;
+              }
+
               await fetch(
                 `${API_URL}`,
-                { method: "DELETE" }
+                {
+                  method: "DELETE",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
               );
 
               setParcelamentos((prev) =>
@@ -135,7 +151,7 @@ const Parcelamentos = () => {
 
           <View style={[styles.totalCard, theme.card]}>
             <Text style={[styles.totalLabel, theme.subText]}>
-              Total restante em parcelamentos 💳
+              Total restante em parcelamentos
             </Text>
             <Text style={[styles.totalValue, theme.text]}>
               R$ {totalEmAberto.toFixed(2).replace(".", ",")}
@@ -234,6 +250,9 @@ const Parcelamentos = () => {
   onClose={() => setModalVisible(false)}
   onSave={async (payload) => {
     try {
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (!token) throw new Error("Sessao invalida. Faca login novamente.");
+
       const url = parcelamentoSelecionado
         ? `${API_URL}/parcelamentos/alterar/${parcelamentoSelecionado.id}`
         : `${API_URL}/parcelamentos/adicionar`;
@@ -242,7 +261,10 @@ const Parcelamentos = () => {
 
       const response = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
 

@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import API_URL from "@/config/api";
@@ -28,6 +29,7 @@ import { AppRoute } from "@/types/routes";
 import { useTheme } from "@/types/themecontext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const TOKEN_KEY = "auth_token";
 
 type Card = {
   title: string;
@@ -99,11 +101,14 @@ export default function DashboardFinanceiro() {
     async function carregarSalario() {
       try {
         const userId = await AsyncStorage.getItem("id");
-        if (!userId) return;
+        const token = await SecureStore.getItemAsync(TOKEN_KEY);
+        if (!userId || !token) return;
 
-        const response = await fetch(
-          `${API_URL}/dashboard/salariomensal?user_id=${userId}`
-        );
+        const response = await fetch(`${API_URL}/dashboard/salariomensal?user_id=${userId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         const data = await response.json();
         if (response.ok) setSalarioMensal(data.salario_mensal);
@@ -121,11 +126,14 @@ export default function DashboardFinanceiro() {
     async function carregarSomaContasFixas() {
       try {
         const userId = await AsyncStorage.getItem("id");
-        if (!userId) return;
+        const token = await SecureStore.getItemAsync(TOKEN_KEY);
+        if (!userId || !token) return;
 
-        const response = await fetch(
-          `${API_URL}/dashboard/somacontasfixas?user_id=${userId}`
-        );
+        const response = await fetch(`${API_URL}/dashboard/somacontasfixas?user_id=${userId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         const data = await response.json();
         if (response.ok) setSomaContasFixas(data.soma_contas_fixas);
@@ -144,11 +152,14 @@ export default function DashboardFinanceiro() {
       try {
         const mes = new Date().getMonth() + 1;
         const userId = await AsyncStorage.getItem("id");
-        if (!userId) return;
+        const token = await SecureStore.getItemAsync(TOKEN_KEY);
+        if (!userId || !token) return;
 
-        const response = await fetch(
-          `${API_URL}/registro/total-gasto-mes/${userId}/${mes}/${anoAtual}`
-        );
+        const response = await fetch(`${API_URL}/registro/total-gasto-mes/${userId}/${mes}/${anoAtual}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         const data = await response.json();
         if (response.ok) setRegistroDiario(data.total);
@@ -166,11 +177,14 @@ export default function DashboardFinanceiro() {
     async function carregarTotalPorMesAno() {
       try {
         const userId = await AsyncStorage.getItem("id");
-        if (!userId) return;
+        const token = await SecureStore.getItemAsync(TOKEN_KEY);
+        if (!userId || !token) return;
 
-        const response = await fetch(
-          `${API_URL}/registro/total-gasto-mes-ano/${userId}/${anoAtual}`
-        );
+        const response = await fetch(`${API_URL}/registro/total-gasto-mes-ano/${userId}/${anoAtual}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
         const data = await response.json();
 

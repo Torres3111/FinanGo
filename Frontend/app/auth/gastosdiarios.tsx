@@ -18,6 +18,7 @@ import { darkTheme, lightTheme } from "@/types/themes";
 import Feather from "@expo/vector-icons/Feather";
 import ModalGastoDiario from "./modalgastodiario";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import API_URL from "@/config/api";
 
 interface GastoDiario {
@@ -41,6 +42,7 @@ const GastosDiarios = () => {
     useState<AppRoute>("/gastosdiarios");
 
   const selectedMonth = "Fevereiro de 2026";
+  const TOKEN_KEY = "auth_token";
 
   const ordenarGastosPorData = (gastosArray: GastoDiario[]) => {
     return [...gastosArray].sort((a, b) => {
@@ -53,12 +55,16 @@ const GastosDiarios = () => {
   async function buscarGastos() {
     try {
       const userId = await AsyncStorage.getItem("id");
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
 
-      if (!userId) throw new Error("Usuário não encontrado.");
+      if (!userId || !token) throw new Error("Sessao invalida. Faca login novamente.");
+      console.log("Buscando gastos para usuário ID:", userId);
 
-      const response = await fetch(
-        `${API_URL}/registro/mostrar/${userId}`
-      );
+      const response = await fetch(`${API_URL}/registro/mostrar/${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
       const data = await response.json();
 
@@ -77,11 +83,17 @@ const GastosDiarios = () => {
   }, []);
 
   async function criarGastoDiario(payload: any) {
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (!token) throw new Error("Sessao invalida. Faca login novamente.");
+
     const response = await fetch(
       `${API_URL}/registro/adicionar`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       }
     );
@@ -95,11 +107,17 @@ const GastosDiarios = () => {
   }
 
   async function editarGastoDiario(id: string, payload: any) {
+    const token = await SecureStore.getItemAsync(TOKEN_KEY);
+    if (!token) throw new Error("Sessao invalida. Faca login novamente.");
+
     const response = await fetch(
       `${API_URL}/registro/alterar/${id}`,
       {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       }
     );
@@ -109,7 +127,7 @@ const GastosDiarios = () => {
     if (!response.ok)
       throw new Error(data.error || "Erro ao editar.");
 
-    return data.gasto; 
+    return data.gasto;
   }
 
   async function excluirGastoDiario(id: string) {
@@ -123,9 +141,20 @@ const GastosDiarios = () => {
           style: "destructive",
           onPress: async () => {
             try {
+              const token = await SecureStore.getItemAsync(TOKEN_KEY);
+              if (!token) {
+                Alert.alert("Erro", "Sessao invalida. Faca login novamente.");
+                return;
+              }
+
               await fetch(
                 `${API_URL}/registro/deletar/${id}`,
-                { method: "DELETE" }
+                {
+                  method: "DELETE",
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                  },
+                }
               );
 
               setGastos((prev) => {
@@ -198,7 +227,7 @@ const GastosDiarios = () => {
               >
                 <Feather name="table" size={18} color="#FFF" />
                 <Text style={styles.addButtonText}>
-                  Ver Gráficos
+                  Ver GrÃ¡ficos
                 </Text>
               </TouchableOpacity>
             </View>
@@ -253,7 +282,7 @@ const GastosDiarios = () => {
                   R$ {gasto.valor.toFixed(2).replace(".", ",")}
                 </Text>
 
-                {/* AÇÕES */}
+                {/* AÃ‡Ã•ES */}
                 <View style={styles.actions}>
                   <TouchableOpacity
                     onPress={() => {

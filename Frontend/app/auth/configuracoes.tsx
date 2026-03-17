@@ -13,6 +13,7 @@ import {
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SecureStore from "expo-secure-store";
 import { Feather } from "@expo/vector-icons";
 
 import MenuCard from "@/components/ui/menuCard";
@@ -21,6 +22,8 @@ import { AppRoute } from "@/types/routes";
 import { lightTheme, darkTheme } from "@/types/themes";
 import { useTheme } from "@/types/themecontext";
 import API_URL from "@/config/api";
+
+const TOKEN_KEY = "auth_token";
 
 export default function Configuracoes() {
   const { darkMode } = useTheme();
@@ -56,16 +59,25 @@ export default function Configuracoes() {
   async function carregarUsuario() {
     try {
       const userId = await AsyncStorage.getItem("id");
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
 
-      if (!userId) {
-        Alert.alert("Erro", "Usuário não encontrado");
+      if (!userId || !token) {
+        Alert.alert("Erro", "Sessão inválida. Faça login novamente.");
+        router.replace("../auth/login");
         return;
       }
 
-      const response = await fetch(
-        `${API_URL}/auth/info?user_id=${userId}`
-      );
+      const response = await fetch(`${API_URL}/auth/info?user_id=${userId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const user = await response.json();
+
+      if (!response.ok) {
+        Alert.alert("Erro", user.error || "Erro ao carregar usuário");
+        return;
+      }
 
       setNome(user.usuario.nome);
       setEmail(user.usuario.email);
@@ -73,7 +85,7 @@ export default function Configuracoes() {
       setSalario(
         String(Math.round(user.usuario.salario_mensal * 100))
       );
-    } catch (error) {
+    } catch {
       Alert.alert("Erro", "Erro ao carregar informações do usuário");
     } finally {
       setLoading(false);
@@ -83,16 +95,19 @@ export default function Configuracoes() {
   async function salvarAlteracoes() {
     try {
       const userId = await AsyncStorage.getItem("id");
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
 
-      if (!userId) {
-        Alert.alert("Erro", "Usuário não encontrado");
+      if (!userId || !token) {
+        Alert.alert("Erro", "Sessão inválida. Faça login novamente.");
+        router.replace("../auth/login");
         return;
       }
 
-      await fetch(`${API_URL}/auth/alterar`, {
+      const response = await fetch(`${API_URL}/auth/alterar`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           id: userId,
@@ -102,8 +117,15 @@ export default function Configuracoes() {
         }),
       });
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert("Erro", data.error || "Não foi possível salvar");
+        return;
+      }
+
       Alert.alert("Sucesso", "Dados atualizados com sucesso");
-    } catch (error) {
+    } catch {
       Alert.alert("Erro", "Não foi possível salvar as alterações");
     }
   }
@@ -119,6 +141,7 @@ export default function Configuracoes() {
           style: "destructive",
           onPress: async () => {
             await AsyncStorage.clear();
+            await SecureStore.deleteItemAsync(TOKEN_KEY);
             router.replace("../auth/login");
           },
         },
