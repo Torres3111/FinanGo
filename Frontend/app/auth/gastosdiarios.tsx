@@ -29,6 +29,34 @@ interface GastoDiario {
   data_registro: string;
 }
 
+type GastoPayload = {
+  user_id: number;
+  descricao: string;
+  valor: number;
+  categoria: string;
+  data_registro: string;
+};
+
+type BuscarGastosResponse = {
+  gastos?: GastoDiario[];
+  error?: string;
+};
+
+type CriarGastoResponse = {
+  gasto_diario?: GastoDiario;
+  error?: string;
+};
+
+type EditarGastoResponse = {
+  gasto?: GastoDiario;
+  error?: string;
+};
+
+function getErrorMessage(error: unknown, fallback = "Erro inesperado.") {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
 const GastosDiarios = () => {
   const { darkMode } = useTheme();
   const theme = darkMode ? darkTheme : lightTheme;
@@ -41,7 +69,6 @@ const GastosDiarios = () => {
   const [activeTab, setActiveTab] =
     useState<AppRoute>("/gastosdiarios");
 
-  const selectedMonth = "Fevereiro de 2026";
   const TOKEN_KEY = "auth_token";
 
   const ordenarGastosPorData = (gastosArray: GastoDiario[]) => {
@@ -64,15 +91,15 @@ const GastosDiarios = () => {
         },
       });
 
-      const data = await response.json();
+      const data: BuscarGastosResponse = await response.json();
 
       if (!response.ok)
         throw new Error(data.error || "Erro ao buscar gastos.");
 
       const gastosOrdenados = ordenarGastosPorData(data.gastos || []);
       setGastos(gastosOrdenados);
-    } catch (error: any) {
-      Alert.alert("Erro", error.message);
+    } catch (error: unknown) {
+      Alert.alert("Erro", getErrorMessage(error, "Erro ao buscar gastos."));
     }
   }
 
@@ -80,7 +107,7 @@ const GastosDiarios = () => {
     buscarGastos();
   }, []);
 
-  async function criarGastoDiario(payload: any) {
+  async function criarGastoDiario(payload: GastoPayload): Promise<GastoDiario> {
     const token = await SecureStore.getItemAsync(TOKEN_KEY);
     if (!token) throw new Error("Sessao invalida. Faca login novamente.");
 
@@ -96,15 +123,19 @@ const GastosDiarios = () => {
       }
     );
 
-    const data = await response.json();
+    const data: CriarGastoResponse = await response.json();
 
     if (!response.ok)
       throw new Error(data.error || "Erro ao criar.");
 
+    if (!data.gasto_diario) {
+      throw new Error("Resposta invalida ao criar gasto.");
+    }
+
     return data.gasto_diario;
   }
 
-  async function editarGastoDiario(id: string, payload: any) {
+  async function editarGastoDiario(id: number, payload: GastoPayload): Promise<GastoDiario> {
     const token = await SecureStore.getItemAsync(TOKEN_KEY);
     if (!token) throw new Error("Sessao invalida. Faca login novamente.");
 
@@ -120,15 +151,19 @@ const GastosDiarios = () => {
       }
     );
 
-    const data = await response.json();
+    const data: EditarGastoResponse = await response.json();
 
     if (!response.ok)
       throw new Error(data.error || "Erro ao editar.");
 
+    if (!data.gasto) {
+      throw new Error("Resposta invalida ao editar gasto.");
+    }
+
     return data.gasto;
   }
 
-  async function excluirGastoDiario(id: string) {
+  async function excluirGastoDiario(id: number) {
     Alert.alert(
       "Excluir Gasto",
       "Tem certeza que deseja excluir?",
@@ -156,7 +191,7 @@ const GastosDiarios = () => {
               );
 
               setGastos((prev) => {
-                const novosGastos = prev.filter((g) => g.id !== Number(id));
+                const novosGastos = prev.filter((g) => g.id !== id);
                 return ordenarGastosPorData(novosGastos);
               });
             } catch {
@@ -296,9 +331,7 @@ const GastosDiarios = () => {
                   </TouchableOpacity>
 
                   <TouchableOpacity
-                    onPress={() =>
-                      excluirGastoDiario(String(gasto.id))
-                    }
+                    onPress={() => excluirGastoDiario(gasto.id)}
                   >
                     <Feather
                       name="trash-2"
@@ -317,11 +350,12 @@ const GastosDiarios = () => {
         visible={modalVisible}
         gasto={gastoSelecionado}
         onClose={() => setModalVisible(false)}
-        onSave={async (data) => {
+        onSave={async (data: Omit<GastoPayload, "user_id">) => {
           try {
             const userId = await AsyncStorage.getItem("id");
+            if (!userId) throw new Error("Sessao invalida. Faca login novamente.");
 
-            const payload = {
+            const payload: GastoPayload = {
               user_id: Number(userId),
               descricao: data.descricao,
               valor: data.valor,
@@ -333,7 +367,7 @@ const GastosDiarios = () => {
 
             if (gastoSelecionado) {
               const atualizado = await editarGastoDiario(
-                String(gastoSelecionado.id),
+                gastoSelecionado.id,
                 payload
               );
 
@@ -352,8 +386,8 @@ const GastosDiarios = () => {
             }
 
             setModalVisible(false);
-          } catch (error: any) {
-            Alert.alert("Erro", error.message);
+          } catch (error: unknown) {
+            Alert.alert("Erro", getErrorMessage(error, "Erro ao salvar gasto."));
           }
         }}
       />

@@ -33,6 +33,7 @@ const TOKEN_KEY = "auth_token";
 export default function Graficos() {
   const { darkMode } = useTheme();
   const theme = darkMode ? darkTheme : lightTheme;
+  const anoAtual = new Date().getFullYear();
 
   const [loading, setLoading] = useState(true);
   const [mesSelecionado, setMesSelecionado] = useState(new Date().getMonth());
@@ -96,7 +97,7 @@ export default function Graficos() {
       if (!userId) throw new Error("UserId nao encontrado");
       if (!token) throw new Error("Token nao encontrado");
 
-      const response = await fetch(`${API_URL}/registro/total-gasto-mes/${Number(userId)}/${mes}/2026`, {
+      const response = await fetch(`${API_URL}/registro/total-gasto-mes/${Number(userId)}/${mes}/${anoAtual}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -118,7 +119,7 @@ export default function Graficos() {
       if (!userId) throw new Error("UserId nao encontrado");
       if (!token) throw new Error("Token nao encontrado");
 
-      const response = await fetch(`${API_URL}/registro/total-gasto-categoria/${Number(userId)}/${mes}/2026`, {
+      const response = await fetch(`${API_URL}/registro/total-gasto-categoria/${Number(userId)}/${mes}/${anoAtual}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -142,7 +143,7 @@ export default function Graficos() {
 
       const response = await fetch(`${API_URL}/registro/percentual-gasto-categoria/${Number(
         userId
-      )}/${mes}/2026`, {
+      )}/${mes}/${anoAtual}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
