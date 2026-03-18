@@ -58,15 +58,21 @@ export default function Graficos() {
     "Outros",
   ];
 
-  const iconesCategoria = {
-    "Alimentacao": Utensils,
-    "Transporte": Car,
-    "Lazer": Smile,
-    "Saude": HeartPulse,
-    "Educacao": GraduationCap,
-    "Compras": ShoppingBag,
-    "Outros": CircleEllipsis,
+  const iconesCategoria: Record<string, React.ComponentType<{ size?: number; color?: string }>> = {
+    alimentacao: Utensils,
+    transporte: Car,
+    lazer: Smile,
+    saude: HeartPulse,
+    educacao: GraduationCap,
+    compras: ShoppingBag,
+    outros: CircleEllipsis,
   };
+
+  const normalizarCategoria = (nome: string) =>
+    nome
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase();
 
   type TotalGastoMesResponse = {
     total: number;
@@ -233,7 +239,7 @@ export default function Graficos() {
 
       <View style={styles.header}>
         <Text style={[styles.title, theme.text]}>
-          AnÃƒÂ¡lise Financeira
+          Análise Financeira
         </Text>
 
         <TouchableOpacity onPress={() => router.back()}>
@@ -290,7 +296,7 @@ export default function Graficos() {
                 {dadosCategoriaOrdenados.map((item, index) => {
                   const altura = (item.total / maxValor) * 160;
                   const Icon =
-                    iconesCategoria[item.nome as keyof typeof iconesCategoria];
+                    iconesCategoria[normalizarCategoria(item.nome)] ?? CircleEllipsis;
 
                   return (
                     <View key={index} style={styles.barWrapper}>
@@ -330,7 +336,7 @@ export default function Graficos() {
           {dadosPercentuaisOrdenados.length > 0 ? (
             dadosPercentuaisOrdenados.map((item, index) => {
               const Icon =
-                iconesCategoria[item.nome as keyof typeof iconesCategoria];
+                iconesCategoria[normalizarCategoria(item.nome)] ?? CircleEllipsis;
 
               return (
                 <View key={index} style={styles.percentualLinha}>
@@ -381,7 +387,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 20,
   },
-  title: { fontSize: 20, fontWeight: "bold", marginTop: 15 },
+  title: { fontSize: 20, fontWeight: "bold", marginTop: 15, marginLeft: 10 },
   voltar: { color: "#16a34a", fontWeight: "600", marginTop: 15, marginRight: 10 },
   monthSelector: { marginBottom: 10 },
   monthButton: {

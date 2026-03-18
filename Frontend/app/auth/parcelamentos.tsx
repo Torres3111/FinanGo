@@ -41,6 +41,28 @@ const Parcelamentos = () => {
     useState<AppRoute>("/parcelamentos");
   const TOKEN_KEY = "auth_token";
 
+  async function parseResponseSafely(response: Response) {
+    const raw = await response.text();
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      try {
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new Error("Resposta JSON invalida do servidor.");
+      }
+    }
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("Endpoint de parcelamentos nao encontrado no backend.");
+      }
+      throw new Error(`Servidor retornou formato invalido (status ${response.status}).`);
+    }
+
+    return {};
+  }
+
   async function buscarParcelamentos() {
     try {
       const userId = await AsyncStorage.getItem("id");
@@ -48,13 +70,13 @@ const Parcelamentos = () => {
 
       if (!userId || !token) throw new Error("Sessao invalida. Faca login novamente.");
 
-      const response = await fetch(`${API_URL}`, {
+      const response = await fetch(`${API_URL}/parcelamentos/mostrar/${Number(userId)}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      const data = await response.json();
+      const data = await parseResponseSafely(response);
 
       if (!response.ok)
         throw new Error(data.error || "Erro ao buscar parcelamentos.");
@@ -86,8 +108,8 @@ const Parcelamentos = () => {
                 return;
               }
 
-              await fetch(
-                `${API_URL}`,
+              const response = await fetch(
+                `${API_URL}/parcelamentos/deletar/${id}`,
                 {
                   method: "DELETE",
                   headers: {
@@ -95,6 +117,8 @@ const Parcelamentos = () => {
                   },
                 }
               );
+
+              await parseResponseSafely(response);
 
               setParcelamentos((prev) =>
                 prev.filter((p) => p.id !== Number(id))
@@ -268,7 +292,7 @@ const Parcelamentos = () => {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      const data = await parseResponseSafely(response);
 
       if (!response.ok)
         throw new Error(data.error);

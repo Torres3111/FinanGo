@@ -58,8 +58,6 @@ const GastosDiarios = () => {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
 
       if (!userId || !token) throw new Error("Sessao invalida. Faca login novamente.");
-      console.log("Buscando gastos para usuário ID:", userId);
-
       const response = await fetch(`${API_URL}/registro/mostrar/${userId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -227,7 +225,7 @@ const GastosDiarios = () => {
               >
                 <Feather name="table" size={18} color="#FFF" />
                 <Text style={styles.addButtonText}>
-                  Ver GrÃ¡ficos
+                  Ver Gráficos
                 </Text>
               </TouchableOpacity>
             </View>
