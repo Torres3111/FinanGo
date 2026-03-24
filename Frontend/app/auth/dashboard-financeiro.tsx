@@ -17,6 +17,7 @@ import {
   Moon,
   ChevronLeft,
   ChevronRight,
+  Target,
 } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
@@ -57,10 +58,34 @@ export default function DashboardFinanceiro() {
   const [salarioMensal, setSalarioMensal] = useState(0);
   const [somaContasFixas, setSomaContasFixas] = useState(0);
   const [registroDiario, setRegistroDiario] = useState(0);
+  const [parcelamentosAtivos, setParcelamentosAtivos] = useState(0);
+  const [somaParcelamentosMensal, setSomaParcelamentosMensal] = useState(0);
   const [totalPorMes, setTotalPorMes] = useState<Record<string, number>>({});
   const [trimestreAtual, setTrimestreAtual] = useState(0);
 
   const anoAtual = new Date().getFullYear();
+
+  async function parseResponseSafely(response: Response) {
+    const raw = await response.text();
+    const contentType = response.headers.get("content-type") ?? "";
+
+    if (contentType.includes("application/json")) {
+      try {
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new Error("Resposta JSON invalida do servidor.");
+      }
+    }
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        throw new Error("Endpoint de parcelamentos/resumo nao encontrado no backend.");
+      }
+      throw new Error(`Servidor retornou formato invalido (status ${response.status}).`);
+    }
+
+    return {};
+  }
 
   /* ================= TRIMESTRES ================= */
 
@@ -162,7 +187,9 @@ export default function DashboardFinanceiro() {
         });
 
         const data = await response.json();
-        if (response.ok) setRegistroDiario(data.total);
+        if (response.ok) {
+          setRegistroDiario(Number(data.total || 0));
+        }
       } catch (e) {
         console.error("Erro ao carregar soma dos registros:", e);
       }
@@ -199,6 +226,34 @@ export default function DashboardFinanceiro() {
     carregarTotalPorMesAno();
   }, []);
 
+  /* ================= RESUMO PARCELAMENTOS ================= */
+
+  useEffect(() => {
+    async function carregarResumoParcelamentos() {
+      try {
+        const token = await SecureStore.getItemAsync(TOKEN_KEY);
+        if (!token) return;
+
+        const response = await fetch(`${API_URL}/parcelas/resumo`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await parseResponseSafely(response);
+
+        if (response.ok) {
+          setParcelamentosAtivos(Number(data.quantidade_ativos || 0));
+          setSomaParcelamentosMensal(Number(data.soma_total_mensal || 0));
+        }
+      } catch (e) {
+        console.error("Erro ao carregar resumo de parcelamentos:", e);
+      }
+    }
+
+    carregarResumoParcelamentos();
+  }, []);
+
   function formatarMoeda(valor: number) {
     return valor.toLocaleString("pt-BR", {
       style: "currency",
@@ -208,7 +263,8 @@ export default function DashboardFinanceiro() {
 
   /* ================= CÁLCULOS ================= */
 
-  const valorComprometido = somaContasFixas + registroDiario;
+  const valorComprometido =
+    somaContasFixas + registroDiario + somaParcelamentosMensal;
   const valorDisponivel = salarioMensal - valorComprometido;
   const percentualComprometido =
     salarioMensal > 0
@@ -240,9 +296,14 @@ export default function DashboardFinanceiro() {
     },
     {
       title: "Parcelamentos",
-      value: "R$ 0,00",
-      subtitle: "0 ativos",
+      value: formatarMoeda(somaParcelamentosMensal),
+      subtitle: `${parcelamentosAtivos} ativos`,
       icon: CreditCard,
+    },
+    {
+      title: "Registros Diarios",
+      value: formatarMoeda(registroDiario),
+      icon: Target,
     },
   ];
 

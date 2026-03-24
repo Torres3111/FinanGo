@@ -2,8 +2,8 @@ import token
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.extensions import db
-from app.models import ContaFixa, RegistroDiario, Usuario
-from datetime import datetime
+from app.models import ContaFixa, RegistroDiario, Usuario, Parcelamento, HistoricoFatura
+from datetime import date, datetime
 from sqlalchemy import func
 
 auth_bp = Blueprint("auth", __name__)
@@ -411,6 +411,8 @@ def deletar_gasto(gasto_id):
     return jsonify({"message": "Gasto deletado com sucesso"}), 200
 ############################# DELETAR GASTOS #################################
 
+
+
 ############################# PÁGINA DE GASTOS #################################
 
 ############################# TOTAL GASTO POR MÊS/ANO #################################
@@ -532,4 +534,195 @@ def total_gasto_mes_ano(user_id, ano):
     }), 200
 ############################# TOTAL GASTO POR MÊS POR USUÁRIO DIVIDIDO POR MÊS DO ANO #################################
 
-############################# PÁGINA DE GASTOS #################################
+
+
+############################# PÁGINA DE PARCELAS #################################
+
+############################# CRIAR PARCELAS #################################
+parcelas_bp = Blueprint(
+    "parcelas",
+    __name__,
+    url_prefix="/parcelas"
+)
+
+@parcelas_bp.route("/criar", methods=["POST"])
+@jwt_required()
+def criar_parcela():
+    data = request.get_json(silent=True)
+    if not data: 
+        return jsonify({"error": "JSON inválido ou ausente"}), 400
+
+    usuario_id = data.get("user_id")
+    descricao = data.get("descricao")
+    
+    parcelamento_existente = Parcelamento.query.filter_by(
+        usuario_id=usuario_id, 
+        descricao=descricao, 
+        ativo=True
+    ).first()
+
+    if parcelamento_existente:
+        return jsonify({"error": "Já existe um parcelamento em andamento com esta descrição"}), 400
+
+
+    try:
+        # Converter string de data para objeto date do Python (se necessário)
+        data_inicio = data.get("data_inicio")
+        data_inicio = datetime.strptime(data_inicio, '%Y-%m-%d').date() if data_inicio else None
+
+        nova_parcela = Parcelamento(
+            usuario_id=usuario_id,
+            descricao=descricao,
+            valor_total=data.get("valor_total"),
+            valor_parcela=data.get("valor_parcela"),
+            parcelas_totais=data.get("parcelas_totais"),
+            parcelas_restantes=data.get("parcelas_restantes"),
+            data_inicio=data_inicio,
+            ativo=data.get("ativo", True)
+        )
+
+        db.session.add(nova_parcela)
+        db.session.commit()
+        
+        return jsonify({"message": "Parcelamento criado com sucesso"}), 201
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": f"Erro ao salvar: {str(e)}"}), 500
+    
+    
+############################# CRIAR PARCELA #################################
+
+############################# BUSCAR PARCELAS #################################
+@parcelas_bp.route("/mostrar", methods=["GET"])
+@jwt_required()
+def mostrar_parcelas():
+    parcelas = Parcelamento.query.all()
+    return jsonify([
+        {
+            "id": parcela.id,
+            "descricao": parcela.descricao,
+            "valor_total": float(parcela.valor_total),
+            "valor_parcela": float(parcela.valor_parcela),
+            "parcelas_totais": parcela.parcelas_totais,
+            "parcelas_restantes": parcela.parcelas_restantes,
+            "data_inicio": parcela.data_inicio,
+            "ativo": parcela.ativo
+        } for parcela in parcelas
+    ]), 200
+############################# BUSCAR PARCELAS #################################
+
+############################# EXCLUIR PARCELAS #################################
+@parcelas_bp.route("/deletar/<int:parcela_id>", methods=["DELETE"])
+@jwt_required()
+def deletar_parcela(parcela_id):
+    parcela = db.session.get(Parcelamento, parcela_id)
+    if not parcela:
+        return jsonify({"error": "Parcela não encontrada"}), 404
+
+    db.session.alterar(parcela.ativa, False)
+    db.session.commit()
+    return jsonify({"message": "Parcela deletada com sucesso"}), 200
+############################# EXCLUIR PARCELAS #################################
+
+############################# EDITAR PARCELAS #################################
+@parcelas_bp.route("/editar/<int:parcela_id>", methods=["PUT"])
+@jwt_required()
+def editar_parcela(parcela_id):
+    data = request.get_json(silent=True)
+
+    if not data:
+        return jsonify({"error": "JSON inválido ou ausente"}), 400
+
+    parcela = db.session.get(Parcelamento, parcela_id)
+    if not parcela:
+        return jsonify({"error": "Parcela não encontrada"}), 404
+
+    parcela.descricao = data.get("descricao", parcela.descricao)
+    parcela.valor_total = data.get("valor_total", parcela.valor_total)
+    parcela.data_inicio = data.get("data_inicio", parcela.data_inicio)
+
+    db.session.commit()
+
+    return jsonify({
+        "message": "Parcela editada com sucesso",
+        "parcela": {
+            "id": parcela.id,
+            "descricao": parcela.descricao,
+            "valor_total": float(parcela.valor_total),
+            "valor_parcela": float(parcela.valor_parcela),
+            "parcelas_totais": parcela.parcelas_totais,
+            "parcelas_restantes": parcela.parcelas_restantes,
+            "data_inicio": parcela.data_inicio,
+            "ativo": parcela.ativo
+        }
+    }), 200
+############################# EDITAR PARCELAS #################################
+
+############################# DIMINUIR PARCELAS #################################
+@parcelas_bp.route("/pagar/<int:parcela_id>", methods=["POST"])
+@jwt_required()
+def pagar_parcela(parcela_id):
+    # Pega o ID do usuário vindo do Token JWT
+    current_user_id = get_jwt_identity()
+    
+    parcela = db.session.get(Parcelamento, parcela_id)
+
+    # Verifica se existe e se pertence ao usuário logado
+    if not parcela or str(parcela.usuario_id) != str(current_user_id):
+        return jsonify({"error": "Parcelamento não encontrado ou acesso negado"}), 404
+
+    if parcela.parcelas_restantes <= 0:
+        return jsonify({"error": "Todas as parcelas já foram pagas"}), 400
+    
+    parcela.parcelas_restantes -= 1
+    if parcela.parcelas_restantes == 0:
+        parcela.ativo = False
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"error": "Erro ao processar pagamento"}), 500
+
+    return jsonify({
+        "message": "Parcela paga com sucesso",
+        "parcela": {
+            "id": parcela.id,
+            "descricao": parcela.descricao,
+            "valor_total": float(parcela.valor_total),
+            "valor_parcela": float(parcela.valor_parcela),
+            "parcelas_totais": parcela.parcelas_totais,
+            "parcelas_restantes": parcela.parcelas_restantes,
+            "data_inicio": parcela.data_inicio.isoformat() if parcela.data_inicio else None,
+            "ativo": parcela.ativo
+        }
+    }), 200
+############################# DIMINUIR PARCELAS #################################
+
+############################# RESUMO DE PARCELAS #################################
+@parcelas_bp.route("/resumo", methods=["GET"])
+@jwt_required()
+def resumo_parcelamentos():
+    # Identifica o usuário logado pelo token
+    current_user_id = get_jwt_identity()
+
+    resumo = db.session.query(
+        func.count(Parcelamento.id).label("total_ativos"),
+        func.sum(Parcelamento.valor_parcela).label("soma_valores")
+    ).filter(
+        Parcelamento.usuario_id == current_user_id,
+        Parcelamento.ativo == True
+    ).first()
+
+    total_ativos = resumo.total_ativos or 0
+    soma_valores = float(resumo.soma_valores) if resumo.soma_valores else 0.0
+
+    return jsonify({
+        "usuario_id": current_user_id,
+        "quantidade_ativos": total_ativos,
+        "soma_total_mensal": soma_valores,
+    }), 200
+############################# RESUMO DE PARCELAS #################################
+
+############################# PÁGINA DE PARCELAS #################################

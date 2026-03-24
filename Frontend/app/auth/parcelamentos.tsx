@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -16,25 +16,28 @@ import { AppRoute } from "@/types/routes";
 import { useTheme } from "@/types/themecontext";
 import { darkTheme, lightTheme } from "@/types/themes";
 import Feather from "@expo/vector-icons/Feather";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import API_URL from "@/config/api";
 import ModalParcelamento from "./modalparcelamento";
 
 interface Parcelamento {
   id: number;
-  descricao: string;
-  valor_total: number;
-  total_parcelas: number;
-  parcelas_pagas: number;
-  categoria: string;
+  descricao?: string;
+  valor_total?: number;
+  valor_parcela?: number;
+  parcelas_totais?: number;
+  parcelas_restantes?: number;
+  data_inicio?: string;
+  data_vencimento?: string;
+  ativo?: boolean;
+  categoria?: string;
 }
 
 const Parcelamentos = () => {
   const { darkMode } = useTheme();
   const theme = darkMode ? darkTheme : lightTheme;
   const [modalVisible, setModalVisible] = useState(false);
-  const [parcelamentoSelecionado, setParcelamentoSelecionado] = useState<any>(null);
+  const [parcelamentoSelecionado, setParcelamentoSelecionado] = useState<Parcelamento | null>(null);
 
   const [parcelamentos, setParcelamentos] = useState<Parcelamento[]>([]);
   const [activeTab, setActiveTab] =
@@ -65,12 +68,11 @@ const Parcelamentos = () => {
 
   async function buscarParcelamentos() {
     try {
-      const userId = await AsyncStorage.getItem("id");
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
 
-      if (!userId || !token) throw new Error("Sessao invalida. Faca login novamente.");
+      if (!token) throw new Error("Sessao invalida. Faca login novamente.");
 
-      const response = await fetch(`${API_URL}/parcelamentos/mostrar/${Number(userId)}`, {
+      const response = await fetch(`${API_URL}/parcelas/mostrar`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -81,7 +83,11 @@ const Parcelamentos = () => {
       if (!response.ok)
         throw new Error(data.error || "Erro ao buscar parcelamentos.");
 
-      setParcelamentos(data.parcelamentos || []);
+      const listaParcelas = Array.isArray(data)
+        ? data
+        : data.parcelas || data.parcelamentos || [];
+
+      setParcelamentos(listaParcelas);
     } catch (error: any) {
       Alert.alert("Erro", error.message);
     }
@@ -109,7 +115,7 @@ const Parcelamentos = () => {
               }
 
               const response = await fetch(
-                `${API_URL}/parcelamentos/deletar/${id}`,
+                `${API_URL}/parcelas/deletar/${id}`,
                 {
                   method: "DELETE",
                   headers: {
@@ -132,11 +138,105 @@ const Parcelamentos = () => {
     );
   }
 
+  async function pagarParcela(parcelaId: number) {
+    try {
+      const token = await SecureStore.getItemAsync(TOKEN_KEY);
+      if (!token) {
+        Alert.alert("Erro", "Sessao invalida. Faca login novamente.");
+        return;
+      }
+
+      const response = await fetch(
+        `${API_URL}/parcelas/pagar/${parcelaId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await parseResponseSafely(response);
+
+      if (!response.ok) {
+        throw new Error(data.error || "Falha ao pagar parcela.");
+      }
+
+      const parcelaAtualizada = data.parcela;
+      if (parcelaAtualizada) {
+        setParcelamentos((prev) =>
+          prev.map((p) =>
+            p.id === parcelaId ? { ...p, ...parcelaAtualizada } : p
+          )
+        );
+      } else {
+        await buscarParcelamentos();
+      }
+
+      Alert.alert("Sucesso", "Parcela paga com sucesso.");
+    } catch (error: any) {
+      Alert.alert("Erro", error.message);
+    }
+  }
+
+  function confirmarPagamento(parcela: Parcelamento) {
+    const restantes = Number(parcela.parcelas_restantes ?? 0);
+    if (restantes <= 0) {
+      Alert.alert("Aviso", "Todas as parcelas ja foram pagas.");
+      return;
+    }
+
+    Alert.alert(
+      "Pagar 1 parcela",
+      `Confirmar pagamento de 1 parcela de \"${parcela.descricao || "Parcelamento"}\"?`,
+      [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Confirmar pagar",
+          onPress: () => pagarParcela(parcela.id),
+        },
+      ]
+    );
+  }
+
+  function abrirModalEditar(parcela: Parcelamento) {
+    setParcelamentoSelecionado(parcela);
+    setModalVisible(true);
+  }
+
+  function calcularDataVencimento(parcela: Parcelamento) {
+    if (parcela.data_vencimento) {
+      const dataDireta = new Date(parcela.data_vencimento);
+      if (!Number.isNaN(dataDireta.getTime())) {
+        return dataDireta.toLocaleDateString("pt-BR");
+      }
+    }
+
+    if (!parcela.data_inicio) {
+      return "Sem data";
+    }
+
+    const dataBase = new Date(parcela.data_inicio);
+    if (Number.isNaN(dataBase.getTime())) {
+      return "Sem data";
+    }
+
+    const totais = Number(parcela.parcelas_totais ?? 0);
+    const restantes = Number(parcela.parcelas_restantes ?? 0);
+    const pagas = Math.max(totais - restantes, 0);
+
+    const dataVencimento = new Date(dataBase);
+    dataVencimento.setMonth(dataVencimento.getMonth() + pagas);
+
+    return dataVencimento.toLocaleDateString("pt-BR");
+  }
+
   const totalEmAberto = parcelamentos.reduce((total, p) => {
-    const valorParcela = p.valor_total / p.total_parcelas;
-    const restantes = p.total_parcelas - p.parcelas_pagas;
-    return total + valorParcela * restantes;
+    const valorParcela = Number(p.valor_parcela ?? 0);
+    const parcelasRestantes = Number(p.parcelas_restantes ?? 0);
+    return total + valorParcela * parcelasRestantes;
   }, 0);
+
 
   return (
     <SafeAreaView style={[styles.container, theme.container]}>
@@ -190,8 +290,12 @@ const Parcelamentos = () => {
             </View>
           ) : (
             parcelamentos.map((p) => {
-              const progresso =
-                p.parcelas_pagas / p.total_parcelas;
+              const totalParcelas = Number(p.parcelas_totais ?? 0);
+              const parcelasRestantes = Number(p.parcelas_restantes ?? 0);
+              const parcelasPagas = Math.max(totalParcelas - parcelasRestantes, 0);
+              const progresso = totalParcelas > 0
+                ? parcelasPagas / totalParcelas
+                : 0;
 
               return (
                 <View
@@ -205,17 +309,34 @@ const Parcelamentos = () => {
                         theme.text,
                       ]}
                     >
-                      {p.descricao}
+                      {p.descricao || "Parcelamento"}
                     </Text>
+                    <View style={styles.vencimentoRow}>
+                      <Feather
+                        name="calendar"
+                        size={14}
+                        color={theme.subText.color}
+                      />
+                      <Text
+                        style={[
+                          styles.vencimentoText,
+                          theme.subText,
+                        ]}
+                      >
+                        Vencimento: {calcularDataVencimento(p)}
+                      </Text>
+                    </View>
 
-                    <Text
-                      style={[
-                        styles.categoria,
-                        theme.subText,
-                      ]}
-                    >
-                      {p.categoria}
-                    </Text>
+                    {!!p.categoria && (
+                      <Text
+                        style={[
+                          styles.categoria,
+                          theme.subText,
+                        ]}
+                      >
+                        {p.categoria}
+                      </Text>
+                    )}
 
                     <Text
                       style={[
@@ -223,8 +344,16 @@ const Parcelamentos = () => {
                         theme.subText,
                       ]}
                     >
-                      {p.parcelas_pagas} de{" "}
-                      {p.total_parcelas} parcelas pagas
+                      {parcelasPagas} de{" "}
+                      {totalParcelas} parcelas pagas
+                    </Text>
+                    <Text
+                      style={[
+                        styles.parcelasRestantesInfo,
+                        theme.subText,
+                      ]}
+                    >
+                      Restantes: {parcelasRestantes}
                     </Text>
 
                     {/* Barra de Progresso */}
@@ -241,15 +370,30 @@ const Parcelamentos = () => {
                   </View>
 
                   <View style={styles.actions}>
-                    <TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => abrirModalEditar(p)}
+                    >
                       <Feather
                         name="edit"
-                        size={18}
+                        size={22}
                         color="#2D5F3F"
                       />
                     </TouchableOpacity>
 
                     <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => confirmarPagamento(p)}
+                    >
+                      <Feather
+                        name="dollar-sign"
+                        size={22}
+                        color="#1E8449"
+                      />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.actionButton}
                       onPress={() =>
                         excluirParcelamento(
                           String(p.id)
@@ -258,7 +402,7 @@ const Parcelamentos = () => {
                     >
                       <Feather
                         name="trash-2"
-                        size={18}
+                        size={22}
                         color="#D11A2A"
                       />
                     </TouchableOpacity>
@@ -271,17 +415,32 @@ const Parcelamentos = () => {
         <ModalParcelamento
   visible={modalVisible}
   parcelamento={parcelamentoSelecionado}
-  onClose={() => setModalVisible(false)}
+  onClose={() => {
+    setModalVisible(false);
+    setParcelamentoSelecionado(null);
+  }}
   onSave={async (payload) => {
     try {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
       if (!token) throw new Error("Sessao invalida. Faca login novamente.");
 
       const url = parcelamentoSelecionado
-        ? `${API_URL}/parcelamentos/alterar/${parcelamentoSelecionado.id}`
-        : `${API_URL}/parcelamentos/adicionar`;
+        ? `${API_URL}/parcelas/editar/${parcelamentoSelecionado.id}`
+        : `${API_URL}/parcelas/criar`;
 
       const method = parcelamentoSelecionado ? "PUT" : "POST";
+
+      const body = {
+        descricao: payload.descricao,
+        valor_total: payload.valor_total,
+        valor_parcela: payload.valor_parcela,
+        parcelas_totais: payload.parcelas_totais,
+        parcelas_restantes: payload.parcelas_restantes,
+        data_inicio: payload.data_inicio,
+        ativo: payload.ativo,
+        usuario_id: payload.usuario_id,
+        user_id: payload.user_id,
+      };
 
       const response = await fetch(url, {
         method,
@@ -289,15 +448,16 @@ const Parcelamentos = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
       });
 
       const data = await parseResponseSafely(response);
 
       if (!response.ok)
-        throw new Error(data.error);
+        throw new Error(data.error || "Erro ao salvar parcelamento.");
 
       setModalVisible(false);
+      setParcelamentoSelecionado(null);
       buscarParcelamentos();
     } catch (error: any) {
       Alert.alert("Erro", error.message);
@@ -387,25 +547,46 @@ const styles = StyleSheet.create({
   },
 
   descricao: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
+    marginBottom: 2,
   },
 
   categoria: {
     fontSize: 13,
-    marginTop: 4,
-  },
-
-  parcelasInfo: {
-    fontSize: 12,
     marginTop: 6,
   },
 
+  parcelasInfo: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 10,
+  },
+
+  parcelasRestantesInfo: {
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+
+  vencimentoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 6,
+  },
+
+  vencimentoText: {
+    fontSize: 12,
+    fontWeight: "500",
+  },
+
   progressBar: {
-    height: 6,
+    width: "100%",
+    height: 8,
     backgroundColor: "#DDD",
     borderRadius: 6,
-    marginTop: 8,
+    marginTop: 14,
     overflow: "hidden",
   },
 
@@ -416,6 +597,12 @@ const styles = StyleSheet.create({
 
   actions: {
     justifyContent: "space-between",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  actionButton: {
+    padding: 8,
   },
 
   emptyState: {

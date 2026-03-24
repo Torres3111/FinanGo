@@ -27,6 +27,9 @@ def create_app():
     
     from app.routes import registro_bp 
     app.register_blueprint(registro_bp) # Resgistro de Rotas de Registro Diário
+
+    from app.routes import parcelas_bp
+    app.register_blueprint(parcelas_bp) # Resgistro de Rotas de Parcelas
     
     with app.app_context():
         from . import models

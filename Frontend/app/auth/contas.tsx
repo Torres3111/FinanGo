@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   StatusBar,
-  FlatList,
-  Platform,
+  ScrollView,
+  Alert,
 } from "react-native";
 import { Feather } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -24,8 +24,6 @@ import API_URL from "@/config/api";
 import ContaFixaModal from "@/app/auth/contafixamodal";
 import ConfirmarDeleteModal from "@/app/auth/confirmardeletemodal";
 
-/* ===== Tipos ===== */
-
 type ContaFixa = {
   id: number;
   nome: string;
@@ -36,30 +34,28 @@ type ContaFixa = {
 
 const TOKEN_KEY = "auth_token";
 
+function getErrorMessage(error: unknown, fallback = "Erro inesperado.") {
+  if (error instanceof Error) return error.message;
+  return fallback;
+}
+
 const Contas: React.FC = () => {
   const { darkMode } = useTheme();
   const theme = darkMode ? darkTheme : lightTheme;
 
-  const [activeTab, setActiveTab] =
-    useState<AppRoute>("/contas");
-
+  const [activeTab, setActiveTab] = useState<AppRoute>("/contas");
   const [modalVisible, setModalVisible] = useState(false);
   const [confirmVisible, setConfirmVisible] = useState(false);
-
   const [contas, setContas] = useState<ContaFixa[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [contaSelecionada, setContaSelecionada] = useState<ContaFixa | null>(null);
+  const [contaParaExcluir, setContaParaExcluir] = useState<ContaFixa | null>(null);
 
-  const [contaSelecionada, setContaSelecionada] =
-    useState<ContaFixa | null>(null);
-
-  const [contaParaExcluir, setContaParaExcluir] =
-    useState<ContaFixa | null>(null);
-
-  /* ===== GET Contas Fixas ===== */
+  function ordenarContas(contasArray: ContaFixa[]) {
+    return [...contasArray].sort((a, b) => a.dia_vencimento - b.dia_vencimento);
+  }
 
   async function carregarContas() {
     try {
-      setLoading(true);
       const userId = await AsyncStorage.getItem("id");
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
 
@@ -73,21 +69,22 @@ const Contas: React.FC = () => {
           Authorization: `Bearer ${token}`,
         },
       });
-      const data = await response.json();
 
-      setContas(data);
-    } catch (error) {
-      console.error("Erro ao carregar contas:", error);
-    } finally {
-      setLoading(false);
+      if (!response.ok) {
+        throw new Error("Erro ao carregar contas fixas.");
+      }
+
+      const data = await response.json();
+      const contasArray = Array.isArray(data) ? data : [];
+      setContas(ordenarContas(contasArray));
+    } catch (error: unknown) {
+      Alert.alert("Erro", getErrorMessage(error, "Erro ao carregar contas fixas."));
     }
   }
 
   useEffect(() => {
     carregarContas();
   }, []);
-
-  /* ===== Criar ou Editar ===== */
 
   async function salvarContaFixa(data: {
     nome: string;
@@ -105,19 +102,20 @@ const Contas: React.FC = () => {
       }
 
       if (contaSelecionada) {
-        await fetch(
-          `${API_URL}/contas-fixas/alterar/${contaSelecionada.id}`,
-          {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(data),
-          }
-        );
+        const response = await fetch(`${API_URL}/contas-fixas/alterar/${contaSelecionada.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+          throw new Error("Erro ao editar conta fixa.");
+        }
       } else {
-        await fetch(`${API_URL}/contas-fixas/create`, {
+        const response = await fetch(`${API_URL}/contas-fixas/create`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -128,17 +126,19 @@ const Contas: React.FC = () => {
             ...data,
           }),
         });
+
+        if (!response.ok) {
+          throw new Error("Erro ao criar conta fixa.");
+        }
       }
 
       setModalVisible(false);
       setContaSelecionada(null);
       await carregarContas();
-    } catch (error) {
-      console.error("Erro ao salvar conta fixa:", error);
+    } catch (error: unknown) {
+      Alert.alert("Erro", getErrorMessage(error, "Erro ao salvar conta fixa."));
     }
   }
-
-  /* ===== Excluir ===== */
 
   async function excluirConta() {
     if (!contaParaExcluir) return;
@@ -151,127 +151,125 @@ const Contas: React.FC = () => {
         return;
       }
 
-      await fetch(
-        `${API_URL}/contas-fixas/deletar/${contaParaExcluir.id}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await fetch(`${API_URL}/contas-fixas/deletar/${contaParaExcluir.id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Erro ao excluir conta fixa.");
+      }
 
       setConfirmVisible(false);
       setContaParaExcluir(null);
       await carregarContas();
-    } catch (error) {
-      console.error("Erro ao excluir conta:", error);
+    } catch (error: unknown) {
+      Alert.alert("Erro", getErrorMessage(error, "Erro ao excluir conta fixa."));
     }
   }
 
-  /* ===== Render Conta ===== */
-
-  function renderConta({ item }: { item: ContaFixa }) {
-    return (
-      <TouchableOpacity
-        activeOpacity={0.85}
-        onPress={() => {
-          setContaSelecionada(item);
-          setModalVisible(true);
-        }}
-      >
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.card.backgroundColor },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, theme.text]}>
-              {item.nome}
-            </Text>
-
-            <TouchableOpacity
-              onPress={(e) => {
-                e.stopPropagation();
-                setContaParaExcluir(item);
-                setConfirmVisible(true);
-              }}
-            >
-              <Feather
-                name="trash-2"
-                size={26}
-                color="#E53935"
-              />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={[styles.valor, theme.money]}>
-            {item.valor.toLocaleString("pt-BR", {
-              style: "currency",
-              currency: "BRL",
-            })}
-          </Text>
-
-          <Text style={[styles.vencimento, theme.subText]}>
-            Vence todo dia {item.dia_vencimento}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    );
-  }
+  const totalMensal = useMemo(
+    () => contas.filter((conta) => conta.ativa).reduce((total, conta) => total + conta.valor, 0),
+    [contas]
+  );
 
   return (
-    <SafeAreaView
-      style={[styles.container, theme.container]}
-      edges={["top"]} 
-    >
-      <StatusBar
-        barStyle={darkMode ? "light-content" : "dark-content"}
-        backgroundColor={theme.container.backgroundColor}
-      />
-
-      <View
-        style={[
-          styles.header,
-          { borderBottomColor: theme.subText.color + "33" },
-        ]}
-      >
-        <Text style={[styles.title, theme.text]}>
-          Contas Fixas
-        </Text>
-
-        <Text style={[styles.subtitle, theme.subText]}>
-          Gerencie suas contas fixas mensais
-        </Text>
-
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => {
-            setContaSelecionada(null);
-            setModalVisible(true);
-          }}
-        >
-          <Feather name="plus" size={18} color="#FFF" />
-          <Text style={[styles.addButtonText]}>
-            Nova Conta
-          </Text>
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={[styles.container, theme.container]}>
+      <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
 
       <View style={styles.content}>
-        <FlatList
-          data={contas}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderConta}
+        <View style={styles.header}>
+          <View style={styles.headerTextContainer}>
+            <Text style={[styles.title, theme.text]}>Contas Fixas</Text>
+            <Text style={[styles.subtitle, theme.subText]}>
+              Gerencie suas despesas recorrentes
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.addButton}
+            onPress={() => {
+              setContaSelecionada(null);
+              setModalVisible(true);
+            }}
+          >
+            <Feather name="plus" size={18} color="#FFF" />
+            <Text style={styles.addButtonText}>Nova Conta</Text>
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ 
-            paddingBottom: 16 
-          }}
-        />
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={[styles.totalCard, theme.card]}>
+            <View style={styles.totalRow}>
+              <View style={styles.totalTextContainer}>
+                <Text style={[styles.totalLabel, theme.subText]}>Total mensal de contas ativas</Text>
+                <Text style={[styles.totalValue, theme.text]}>
+                  {totalMensal.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {contas.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Text style={[styles.emptyStateText, theme.subText]}>
+                Nenhuma conta fixa cadastrada
+              </Text>
+            </View>
+          ) : (
+            contas.map((conta) => (
+              <View key={conta.id} style={[styles.contaCard, theme.card]}>
+                <View style={styles.contaInfo}>
+                  <Text style={[styles.contaNome, theme.text]}>{conta.nome}</Text>
+                  <Text style={[styles.contaVencimento, theme.subText]}>
+                    Vence todo dia {conta.dia_vencimento}
+                  </Text>
+                  <Text style={[styles.contaStatus, conta.ativa ? styles.statusAtiva : styles.statusInativa]}>
+                    {conta.ativa ? "Ativa" : "Inativa"}
+                  </Text>
+                </View>
+
+                <Text style={[styles.contaValor, theme.text]}>
+                  {conta.valor.toLocaleString("pt-BR", {
+                    style: "currency",
+                    currency: "BRL",
+                  })}
+                </Text>
+
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setContaSelecionada(conta);
+                      setModalVisible(true);
+                    }}
+                  >
+                    <Feather name="edit" size={18} color="#2D5F3F" />
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => {
+                      setContaParaExcluir(conta);
+                      setConfirmVisible(true);
+                    }}
+                  >
+                    <Feather name="trash-2" size={18} color="#D11A2A" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))
+          )}
+        </ScrollView>
       </View>
 
-      <View style={styles.menuContainer}>
+      <View style={styles.bottomMenu}>
         <MenuCard
           items={menuItems}
           active={activeTab}
@@ -282,7 +280,6 @@ const Contas: React.FC = () => {
         />
       </View>
 
-      {/* ===== Modal Criar / Editar ===== */}
       <ContaFixaModal
         visible={modalVisible}
         conta={contaSelecionada}
@@ -308,38 +305,32 @@ const Contas: React.FC = () => {
 
 export default Contas;
 
-
-/* ===== Styles ===== */
-
-const STATUS_BAR_HEIGHT =
-  Platform.OS === "android"
-    ? StatusBar.currentHeight ?? 10
-    : 0; 
-
-const MENU_HEIGHT = 70;
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingTop: STATUS_BAR_HEIGHT,
-  },
+  container: { flex: 1 },
+  content: { flex: 1 },
 
   header: {
+    marginTop: 24,
     paddingHorizontal: 20,
-    paddingTop: 6,
-    paddingBottom: 10,
-    borderBottomWidth: 1,
+    paddingVertical: 16,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  headerTextContainer: {
+    flex: 1,
   },
 
   title: {
     fontSize: 28,
     fontWeight: "700",
-    marginBottom: 6,
   },
 
   subtitle: {
     fontSize: 15,
-    marginBottom: 16,
+    marginTop: 4,
   },
 
   addButton: {
@@ -347,73 +338,108 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#2D5F3F",
     paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     borderRadius: 10,
-    alignSelf: "flex-start",
   },
 
   addButtonText: {
     color: "#FFFFFF",
-    fontSize: 15,
     fontWeight: "600",
     marginLeft: 8,
   },
 
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 16,
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 120,
   },
 
-  menuContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: Platform.OS === "ios" ? 8 : 16,
-    backgroundColor: "transparent",
+  totalCard: {
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
   },
 
-  card: {
-    borderWidth: 0.2,
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 10,
-  },
-
-  cardHeader: {
+  totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
 
-  cardTitle: {
-    fontSize: 25,
-    fontWeight: "600",
+  totalTextContainer: {
+    flex: 1,
   },
 
-  inactiveBadge: {
-    fontSize: 12,
-    color: "#C0392B",
-    fontWeight: "600",
-  },
-
-  valor: {
-    fontSize: 22,
-    fontWeight: "700",
-    marginTop: 8,
-  },
-
-  vencimento: {
+  totalLabel: {
     fontSize: 14,
+  },
+
+  totalValue: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginTop: 4,
+  },
+
+  contaCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+
+  contaInfo: {
+    flex: 1,
+  },
+
+  contaNome: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  contaVencimento: {
+    fontSize: 13,
+    marginTop: 4,
+  },
+
+  contaStatus: {
+    fontSize: 11,
     marginTop: 2,
+    fontWeight: "600",
+  },
+
+  statusAtiva: {
+    color: "#2D5F3F",
+  },
+
+  statusInativa: {
+    color: "#D11A2A",
+  },
+
+  contaValor: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginRight: 10,
+  },
+
+  actions: {
+    flexDirection: "row",
+    gap: 12,
   },
 
   emptyState: {
     alignItems: "center",
-    marginTop: 8,
+    marginTop: 40,
   },
 
   emptyStateText: {
-    fontSize: 16,
-    marginTop: 16,
-    fontWeight: "500",
+    fontSize: 14,
+  },
+
+  bottomMenu: {
+    position: "absolute",
+    bottom: 8,
+    left: 16,
+    right: 16,
   },
 });
