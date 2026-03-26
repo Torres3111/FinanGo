@@ -285,7 +285,15 @@ const Contas: React.FC = () => {
             </View>
           ) : (
             contas.map((conta) => (
-              <View key={conta.id} style={[styles.contaCard, theme.card]}>
+              <TouchableOpacity
+                key={conta.id}
+                style={[styles.contaCard, theme.card]}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setContaSelecionada(conta);
+                  setModalVisible(true);
+                }}
+              >
                 <View style={styles.contaInfo}>
                   <Text style={[styles.contaNome, theme.text]}>{conta.nome}</Text>
                   <Text style={[styles.contaVencimento, theme.subText]}>
@@ -322,7 +330,7 @@ const Contas: React.FC = () => {
                     <Feather name="trash-2" size={18} color="#D11A2A" />
                   </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </ScrollView>
@@ -457,12 +465,12 @@ const styles = StyleSheet.create({
   },
 
   contaVencimento: {
-    fontSize: 13,
+    fontSize: 16,
     marginTop: 4,
   },
 
   contaStatus: {
-    fontSize: 11,
+    fontSize: 14,
     marginTop: 2,
     fontWeight: "600",
   },
@@ -476,14 +484,14 @@ const styles = StyleSheet.create({
   },
 
   contaValor: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
     marginRight: 10,
   },
 
   actions: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
   },
 
   emptyState: {

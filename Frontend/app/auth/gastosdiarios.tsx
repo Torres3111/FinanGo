@@ -274,9 +274,14 @@ const GastosDiarios = () => {
             </View>
           ) : (
             gastos.map((gasto) => (
-              <View
+              <TouchableOpacity
                 key={gasto.id}
                 style={[styles.gastoCard, theme.card]}
+                activeOpacity={0.85}
+                onPress={() => {
+                  setGastoSelecionado(gasto);
+                  setModalVisible(true);
+                }}
               >
                 <View style={{ flex: 1 }}>
                   <Text
@@ -340,7 +345,7 @@ const GastosDiarios = () => {
                     />
                   </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </ScrollView>
@@ -479,29 +484,29 @@ const styles = StyleSheet.create({
   },
 
   gastoDescricao: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "600",
   },
 
   gastoCategoria: {
-    fontSize: 13,
+    fontSize: 17,
     marginTop: 4,
   },
 
   gastoData: {
-    fontSize: 11,
+    fontSize: 17,
     marginTop: 2,
   },
 
   gastoValor: {
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "bold",
     marginRight: 10,
   },
 
   actions: {
     flexDirection: "row",
-    gap: 12,
+    gap: 10,
   },
 
   emptyState: {

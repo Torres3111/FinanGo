@@ -31,6 +31,9 @@ import { useTheme } from "@/types/themecontext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const TOKEN_KEY = "auth_token";
+const TRIMESTRE_CARD_WIDTH = SCREEN_WIDTH - 32;
+const TRIMESTRE_CARD_GAP = 16;
+const TRIMESTRE_SNAP_INTERVAL = TRIMESTRE_CARD_WIDTH + TRIMESTRE_CARD_GAP;
 
 type Card = {
   title: string;
@@ -370,7 +373,7 @@ export default function DashboardFinanceiro() {
     const maiorValorMes = Math.max(...valoresMeses, 1);
 
     return (
-      <View style={[styles.trimestreContainer, { width: SCREEN_WIDTH - 32 }]}>
+      <View style={[styles.trimestreContainer, { width: TRIMESTRE_CARD_WIDTH }]}>
         <Text style={[styles.trimestreTitle, theme.text]}>
           {item.nome} - {anoAtual}
         </Text>
@@ -559,11 +562,12 @@ export default function DashboardFinanceiro() {
             showsHorizontalScrollIndicator={false}
             onMomentumScrollEnd={(event) => {
               const newIndex = Math.round(
-                event.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32)
+                event.nativeEvent.contentOffset.x / TRIMESTRE_SNAP_INTERVAL
               );
               setTrimestreAtual(newIndex);
             }}
-            snapToInterval={SCREEN_WIDTH - 32}
+            snapToInterval={TRIMESTRE_SNAP_INTERVAL}
+            snapToAlignment="start"
             decelerationRate="fast"
             contentContainerStyle={styles.trimestresList}
           />
@@ -680,6 +684,7 @@ const styles = StyleSheet.create({
   navButton: {
     padding: 8,
     borderRadius: 8,
+    opacity: 0.7,
     backgroundColor: "rgba(0,0,0,0.05)",
   },
 
@@ -688,13 +693,13 @@ const styles = StyleSheet.create({
   },
 
   trimestresList: {
-    paddingRight: 16,
+    paddingRight: 0,
   },
 
   trimestreContainer: {
     marginRight: 16,
     padding: 16,
-    backgroundColor: "rgba(0,0,0,0.02)",
+    backgroundColor: "#ffffff",
     borderRadius: 20,
   },
 

@@ -21,50 +21,58 @@ export default function MenuCard({
   const theme = darkMode ? darkTheme : lightTheme;
 
   return (
-    <SafeAreaView style={[styles.container, theme.card]}>
-      {items.map((item) => {
-        const isActive = active === item.id;
-        const Icon = item.icon;
+    <SafeAreaView
+      edges={["bottom", "left", "right"]}
+      style={styles.safeArea}
+    >
+      <View style={[styles.container, theme.card]}>
+        {items.map((item) => {
+          const isActive = active === item.id;
+          const Icon = item.icon;
 
-        return (
-          <TouchableOpacity
-            key={item.id}
-            onPress={() => onNavigate(item.route)}
-            style={styles.item}
-            activeOpacity={0.7}
-          >
-            <Icon
-              size={22}
-              color={
-                isActive
-                  ? "#16a34a"
-                  : theme.subText.color
-              }
-            />
-
-            <Text
-              style={[
-                styles.label,
-                isActive
-                  ? styles.activeLabel
-                  : theme.subText,
-              ]}
+          return (
+            <TouchableOpacity
+              key={item.id}
+              onPress={() => onNavigate(item.route)}
+              style={styles.item}
+              activeOpacity={0.7}
             >
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+              <Icon
+                size={22}
+                color={
+                  isActive
+                    ? "#16a34a"
+                    : theme.subText.color
+                }
+              />
+
+              <Text
+                style={[
+                  styles.label,
+                  isActive
+                    ? styles.activeLabel
+                    : theme.subText,
+                ]}
+              >
+                {item.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: "transparent",
+  },
   container: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-    borderRadius: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderRadius: 12,
     elevation: 0,
     marginBottom: 0,
     backgroundColor: "#fff",
@@ -72,10 +80,11 @@ const styles = StyleSheet.create({
   item: {
     alignItems: "center",
     flex: 1,
+    paddingVertical: 4,
   },
   label: {
-    fontSize: 12,
-    marginTop: 6,
+    fontSize: 11,
+    marginTop: 3,
   },
   activeLabel: {
     color: "#16a34a",

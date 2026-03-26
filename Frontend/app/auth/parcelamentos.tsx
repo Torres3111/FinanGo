@@ -408,9 +408,11 @@ const Parcelamentos = () => {
                 : 0;
 
               return (
-                <View
+                <TouchableOpacity
                   key={p.id}
                   style={[styles.card, theme.card]}
+                  activeOpacity={0.85}
+                  onPress={() => abrirModalEditar(p)}
                 >
                   <View style={{ flex: 1 }}>
                     <Text
@@ -517,7 +519,7 @@ const Parcelamentos = () => {
                       />
                     </TouchableOpacity>
                   </View>
-                </View>
+                </TouchableOpacity>
               );
             })
           )}

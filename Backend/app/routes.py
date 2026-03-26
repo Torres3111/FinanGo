@@ -588,8 +588,6 @@ def criar_parcela():
     except Exception as e:
         db.session.rollback()
         return jsonify({"error": f"Erro ao salvar: {str(e)}"}), 500
-    
-    
 ############################# CRIAR PARCELA #################################
 
 ############################# BUSCAR PARCELAS #################################
