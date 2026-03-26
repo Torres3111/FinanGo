@@ -108,7 +108,6 @@ def update_user():
     usuario.nome = data.get("nome", usuario.nome)
     usuario.email = data.get("email", usuario.email)
     usuario.salario_mensal = data.get("salario_mensal", usuario.salario_mensal)
-
     db.session.commit()
 
     return jsonify({"message": "Usuário atualizado com sucesso"}), 200
@@ -597,7 +596,7 @@ def criar_parcela():
 @parcelas_bp.route("/mostrar", methods=["GET"])
 @jwt_required()
 def mostrar_parcelas():
-    parcelas = Parcelamento.query.all()
+    parcelas = Parcelamento.query.filter(Parcelamento.ativo == True).all()
     return jsonify([
         {
             "id": parcela.id,
@@ -620,7 +619,7 @@ def deletar_parcela(parcela_id):
     if not parcela:
         return jsonify({"error": "Parcela não encontrada"}), 404
 
-    db.session.alterar(parcela.ativa, False)
+    parcela.ativo = False
     db.session.commit()
     return jsonify({"message": "Parcela deletada com sucesso"}), 200
 ############################# EXCLUIR PARCELAS #################################
@@ -724,5 +723,30 @@ def resumo_parcelamentos():
         "soma_total_mensal": soma_valores,
     }), 200
 ############################# RESUMO DE PARCELAS #################################
+
+############################# HISTÓRICO DE PARCELAMENTOS #################################
+@parcelas_bp.route("/historico", methods=["GET"])
+@jwt_required()
+def historico_parcelamentos():
+    current_user_id = get_jwt_identity()
+
+    historico = Parcelamento.query.filter_by(
+        usuario_id=current_user_id,
+        ativo=False
+    ).order_by(Parcelamento.data_inicio.desc()).all()
+
+    return jsonify([
+        {
+            "id": parcela.id,
+            "descricao": parcela.descricao,
+            "valor_total": float(parcela.valor_total),
+            "valor_parcela": float(parcela.valor_parcela),
+            "parcelas_totais": parcela.parcelas_totais,
+            "parcelas_restantes": parcela.parcelas_restantes,
+            "data_inicio": parcela.data_inicio,
+            "ativo": parcela.ativo
+        } for parcela in historico
+    ]), 200
+############################# HISTÓRICO DE PARCELAMENTOS #################################
 
 ############################# PÁGINA DE PARCELAS #################################

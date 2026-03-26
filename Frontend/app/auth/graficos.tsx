@@ -30,6 +30,84 @@ const MESES = [
 ];
 const TOKEN_KEY = "auth_token";
 
+type ApiErrorResponse = {
+  error?: string;
+  message?: string;
+};
+
+type TotalGastoMesResponse = {
+  total?: number | string | null;
+  gastos?: number | string | null;
+};
+
+type TotalGastoCategoriaResponse = {
+  total_por_categoria?: Record<string, number | string | null>;
+};
+
+type PercentualGastoCategoriaResponse = {
+  percentual_por_categoria?: Record<string, number | string | null>;
+};
+
+async function parseResponseSafely<T>(response: Response): Promise<T> {
+  const raw = await response.text();
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      return (raw ? JSON.parse(raw) : {}) as T;
+    } catch {
+      throw new Error("Resposta JSON invalida do servidor.");
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(`Servidor retornou formato invalido (status ${response.status}).`);
+  }
+
+  return {} as T;
+}
+
+function parseNumero(valor: number | string | null | undefined): number {
+  return Number(valor || 0);
+}
+
+function parseMapaNumerico(
+  mapa?: Record<string, number | string | null>
+): Record<string, number> {
+  if (!mapa) return {};
+  return Object.fromEntries(
+    Object.entries(mapa).map(([chave, valor]) => [chave, parseNumero(valor)])
+  );
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isApiErrorResponse(payload: unknown): payload is ApiErrorResponse {
+  if (!isObjectRecord(payload)) return false;
+  return "error" in payload || "message" in payload;
+}
+
+function isTotalGastoMesResponse(payload: unknown): payload is TotalGastoMesResponse {
+  return isObjectRecord(payload) && ("total" in payload || "gastos" in payload);
+}
+
+function isTotalGastoCategoriaResponse(payload: unknown): payload is TotalGastoCategoriaResponse {
+  return isObjectRecord(payload) && "total_por_categoria" in payload;
+}
+
+function isPercentualGastoCategoriaResponse(
+  payload: unknown
+): payload is PercentualGastoCategoriaResponse {
+  return isObjectRecord(payload) && "percentual_por_categoria" in payload;
+}
+
+function getApiError(payload: unknown): string | undefined {
+  if (!isApiErrorResponse(payload)) return undefined;
+  return payload.error || payload.message;
+}
+
 export default function Graficos() {
   const { darkMode } = useTheme();
   const theme = darkMode ? darkTheme : lightTheme;
@@ -75,19 +153,6 @@ export default function Graficos() {
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
 
-  type TotalGastoMesResponse = {
-    total: number;
-    gastos: number;
-  };
-
-  type TotalGastoCategoriaResponse = {
-    total_por_categoria: Record<string, number>;
-  };
-
-  type PercentualGastoCategoriaResponse = {
-    percentual_por_categoria: Record<string, number>;
-  };
-
   const fetchTotalGastoMes = async (
     mes: number
   ): Promise<TotalGastoMesResponse | null> => {
@@ -103,7 +168,18 @@ export default function Graficos() {
         },
       });
 
-      return await response.json();
+      const payload = await parseResponseSafely<unknown>(response);
+      if (!response.ok) {
+        console.error("Erro ao buscar total de gasto por mes:", getApiError(payload));
+        return null;
+      }
+
+      if (!isTotalGastoMesResponse(payload)) {
+        console.error("Erro ao buscar total de gasto por mes: payload inesperado.");
+        return null;
+      }
+
+      return payload;
     } catch (error) {
       console.error("Erro ao buscar total de gasto por mes:", error);
       return null;
@@ -125,7 +201,18 @@ export default function Graficos() {
         },
       });
 
-      return await response.json();
+      const payload = await parseResponseSafely<unknown>(response);
+      if (!response.ok) {
+        console.error("Erro ao buscar total de gasto por categoria:", getApiError(payload));
+        return null;
+      }
+
+      if (!isTotalGastoCategoriaResponse(payload)) {
+        console.error("Erro ao buscar total de gasto por categoria: payload inesperado.");
+        return null;
+      }
+
+      return payload;
     } catch (error) {
       console.error("Erro ao buscar total de gasto por categoria:", error);
       return null;
@@ -149,7 +236,18 @@ export default function Graficos() {
         },
       });
 
-      return await response.json();
+      const payload = await parseResponseSafely<unknown>(response);
+      if (!response.ok) {
+        console.error("Erro ao buscar percentual de gasto por categoria:", getApiError(payload));
+        return null;
+      }
+
+      if (!isPercentualGastoCategoriaResponse(payload)) {
+        console.error("Erro ao buscar percentual de gasto por categoria: payload inesperado.");
+        return null;
+      }
+
+      return payload;
     } catch (error) {
       console.error("Erro ao buscar percentual de gasto por categoria:", error);
       return null;
@@ -173,15 +271,15 @@ export default function Graficos() {
           fetchPercentualGastoCategoria(mesAPI),
         ]);
 
-      if (totalMesData && typeof totalMesData.total === "number") {
-        setTotalMes(totalMesData.total);
-        setQuantidadeGastos(totalMesData.gastos);
+      if (totalMesData) {
+        setTotalMes(parseNumero(totalMesData.total));
+        setQuantidadeGastos(parseNumero(totalMesData.gastos));
       } else {
         setTotalMes(0);
         setQuantidadeGastos(0);
       }
 
-      const categoriasObj = categoriaData?.total_por_categoria ?? {};
+      const categoriasObj = parseMapaNumerico(categoriaData?.total_por_categoria);
 
       const categoriasFormatadas = categorias.map((cat) => ({
         nome: cat,
@@ -190,7 +288,7 @@ export default function Graficos() {
 
       setDadosCategoria(categoriasFormatadas);
 
-      const percentualObj = percentualData?.percentual_por_categoria ?? {};
+      const percentualObj = parseMapaNumerico(percentualData?.percentual_por_categoria);
 
       const percentuaisFormatados = categorias.map((cat) => ({
         nome: cat,

@@ -48,6 +48,27 @@ type Trimestre = {
   total: number;
 };
 
+type SalarioMensalResponse = {
+  salario_mensal?: number | string | null;
+};
+
+type SomaContasFixasResponse = {
+  soma_contas_fixas?: number | string | null;
+};
+
+type RegistroDiarioMesResponse = {
+  total?: number | string | null;
+};
+
+type TotalPorMesAnoResponse = {
+  total_por_mes?: Record<string, number | string | null>;
+};
+
+type ResumoParcelamentosResponse = {
+  quantidade_ativos?: number | string | null;
+  soma_total_mensal?: number | string | null;
+};
+
 export default function DashboardFinanceiro() {
   const { theme, toggleTheme } = useTheme();
   const flatListRef = useRef<FlatList>(null);
@@ -65,13 +86,13 @@ export default function DashboardFinanceiro() {
 
   const anoAtual = new Date().getFullYear();
 
-  async function parseResponseSafely(response: Response) {
+  async function parseResponseSafely<T>(response: Response): Promise<T> {
     const raw = await response.text();
     const contentType = response.headers.get("content-type") ?? "";
 
     if (contentType.includes("application/json")) {
       try {
-        return raw ? JSON.parse(raw) : {};
+        return (raw ? JSON.parse(raw) : {}) as T;
       } catch {
         throw new Error("Resposta JSON invalida do servidor.");
       }
@@ -84,7 +105,7 @@ export default function DashboardFinanceiro() {
       throw new Error(`Servidor retornou formato invalido (status ${response.status}).`);
     }
 
-    return {};
+    return {} as T;
   }
 
   /* ================= TRIMESTRES ================= */
@@ -135,8 +156,8 @@ export default function DashboardFinanceiro() {
           },
         });
 
-        const data = await response.json();
-        if (response.ok) setSalarioMensal(data.salario_mensal);
+        const data = await parseResponseSafely<SalarioMensalResponse>(response);
+        if (response.ok) setSalarioMensal(Number(data.salario_mensal || 0));
       } catch (e) {
         console.error("Erro ao carregar salário:", e);
       }
@@ -145,7 +166,6 @@ export default function DashboardFinanceiro() {
     carregarSalario();
   }, []);
 
-  /* ================= CONTAS FIXAS ================= */
 
   useEffect(() => {
     async function carregarSomaContasFixas() {
@@ -160,8 +180,8 @@ export default function DashboardFinanceiro() {
           },
         });
 
-        const data = await response.json();
-        if (response.ok) setSomaContasFixas(data.soma_contas_fixas);
+        const data = await parseResponseSafely<SomaContasFixasResponse>(response);
+        if (response.ok) setSomaContasFixas(Number(data.soma_contas_fixas || 0));
       } catch (e) {
         console.error("Erro ao carregar soma das contas fixas:", e);
       }
@@ -170,7 +190,6 @@ export default function DashboardFinanceiro() {
     carregarSomaContasFixas();
   }, []);
 
-  /* ================= TOTAL DO MÊS ATUAL ================= */
 
   useEffect(() => {
     async function carregarRegistrosDiariosdomes() {
@@ -186,7 +205,7 @@ export default function DashboardFinanceiro() {
           },
         });
 
-        const data = await response.json();
+        const data = await parseResponseSafely<RegistroDiarioMesResponse>(response);
         if (response.ok) {
           setRegistroDiario(Number(data.total || 0));
         }
@@ -213,10 +232,17 @@ export default function DashboardFinanceiro() {
           },
         });
 
-        const data = await response.json();
+        const data = await parseResponseSafely<TotalPorMesAnoResponse>(response);
 
         if (response.ok && data.total_por_mes) {
-          setTotalPorMes(data.total_por_mes);
+          const totalPorMesNormalizado = Object.fromEntries(
+            Object.entries(data.total_por_mes).map(([mes, valor]) => [
+              mes,
+              Number(valor || 0),
+            ])
+          );
+
+          setTotalPorMes(totalPorMesNormalizado);
         }
       } catch (e) {
         console.error("Erro ao carregar gráfico anual:", e);
@@ -226,7 +252,6 @@ export default function DashboardFinanceiro() {
     carregarTotalPorMesAno();
   }, []);
 
-  /* ================= RESUMO PARCELAMENTOS ================= */
 
   useEffect(() => {
     async function carregarResumoParcelamentos() {
@@ -240,7 +265,7 @@ export default function DashboardFinanceiro() {
           },
         });
 
-        const data = await parseResponseSafely(response);
+        const data = await parseResponseSafely<ResumoParcelamentosResponse>(response);
 
         if (response.ok) {
           setParcelamentosAtivos(Number(data.quantidade_ativos || 0));

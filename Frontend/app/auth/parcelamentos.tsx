@@ -22,16 +22,55 @@ import ModalParcelamento from "./modalparcelamento";
 
 interface Parcelamento {
   id: number;
-  descricao?: string;
-  valor_total?: number;
-  valor_parcela?: number;
-  parcelas_totais?: number;
-  parcelas_restantes?: number;
-  data_inicio?: string;
-  data_vencimento?: string;
-  ativo?: boolean;
-  categoria?: string;
+  descricao: string;
+  valor_total: number;
+  valor_parcela: number;
+  parcelas_totais: number;
+  parcelas_restantes: number;
+  data_inicio: string | null;
+  data_vencimento?: string | null;
+  ativo: boolean;
+  categoria?: string | null;
 }
+
+type ParcelamentoApi = {
+  id: number | string;
+  descricao?: string | null;
+  valor_total?: number | string | null;
+  valor_parcela?: number | string | null;
+  parcelas_totais?: number | string | null;
+  parcelas_restantes?: number | string | null;
+  data_inicio?: string | null;
+  data_vencimento?: string | null;
+  ativo?: boolean | null;
+  categoria?: string | null;
+};
+
+type ApiBaseResponse = {
+  message?: string;
+  error?: string;
+};
+
+type ParcelaMutationResponse = ApiBaseResponse & {
+  parcela?: ParcelamentoApi;
+};
+
+type ParcelasListResponse = {
+  parcelas?: ParcelamentoApi[];
+  parcelamentos?: ParcelamentoApi[];
+};
+
+type ParcelamentoPayload = {
+  descricao: string;
+  valor_total: number;
+  valor_parcela: number;
+  parcelas_totais: number;
+  parcelas_restantes: number;
+  data_inicio: string;
+  ativo: boolean;
+  usuario_id: number;
+  user_id: number;
+};
 
 const Parcelamentos = () => {
   const { darkMode } = useTheme();
@@ -44,13 +83,57 @@ const Parcelamentos = () => {
     useState<AppRoute>("/parcelamentos");
   const TOKEN_KEY = "auth_token";
 
-  async function parseResponseSafely(response: Response) {
+  function getErrorMessage(error: unknown, fallback = "Erro inesperado.") {
+    if (error instanceof Error) return error.message;
+    return fallback;
+  }
+
+  function parseNumero(valor: number | string | null | undefined): number {
+    return Number(valor || 0);
+  }
+
+  function isObjectRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === "object" && value !== null;
+  }
+
+  function isApiBaseResponse(value: unknown): value is ApiBaseResponse {
+    return isObjectRecord(value) && ("error" in value || "message" in value);
+  }
+
+  function isParcelamentoApi(value: unknown): value is ParcelamentoApi {
+    return isObjectRecord(value) && "id" in value;
+  }
+
+  function isParcelasListResponse(value: unknown): value is ParcelasListResponse {
+    return isObjectRecord(value) && ("parcelas" in value || "parcelamentos" in value);
+  }
+
+  function normalizarParcelamento(item: ParcelamentoApi): Parcelamento {
+    return {
+      id: Number(item.id),
+      descricao: item.descricao || "Parcelamento",
+      valor_total: parseNumero(item.valor_total),
+      valor_parcela: parseNumero(item.valor_parcela),
+      parcelas_totais: parseNumero(item.parcelas_totais),
+      parcelas_restantes: parseNumero(item.parcelas_restantes),
+      data_inicio: item.data_inicio ?? null,
+      data_vencimento: item.data_vencimento ?? null,
+      ativo: Boolean(item.ativo),
+      categoria: item.categoria ?? null,
+    };
+  }
+
+  function extractApiError(payload: ApiBaseResponse | undefined, fallback: string) {
+    return payload?.error || payload?.message || fallback;
+  }
+
+  async function parseResponseSafely<T>(response: Response): Promise<T> {
     const raw = await response.text();
     const contentType = response.headers.get("content-type") ?? "";
 
     if (contentType.includes("application/json")) {
       try {
-        return raw ? JSON.parse(raw) : {};
+        return (raw ? JSON.parse(raw) : {}) as T;
       } catch {
         throw new Error("Resposta JSON invalida do servidor.");
       }
@@ -63,7 +146,7 @@ const Parcelamentos = () => {
       throw new Error(`Servidor retornou formato invalido (status ${response.status}).`);
     }
 
-    return {};
+    return {} as T;
   }
 
   async function buscarParcelamentos() {
@@ -78,20 +161,32 @@ const Parcelamentos = () => {
         },
       });
 
-      const data = await parseResponseSafely(response);
+      const data = await parseResponseSafely<unknown>(response);
 
       if (!response.ok)
-        throw new Error(data.error || "Erro ao buscar parcelamentos.");
+        throw new Error(
+          extractApiError(
+            isApiBaseResponse(data) ? data : undefined,
+            "Erro ao buscar parcelamentos."
+          )
+        );
 
       const listaParcelas = Array.isArray(data)
-        ? data
-        : data.parcelas || data.parcelamentos || [];
+        ? data.filter(isParcelamentoApi)
+        : isParcelasListResponse(data)
+          ? [
+              ...(Array.isArray(data.parcelas) ? data.parcelas : []),
+              ...(Array.isArray(data.parcelamentos) ? data.parcelamentos : []),
+            ].filter(isParcelamentoApi)
+          : [];
 
-      setParcelamentos(listaParcelas);
-    } catch (error: any) {
-      Alert.alert("Erro", error.message);
+      setParcelamentos(listaParcelas.map(normalizarParcelamento));
+    } catch (error: unknown) {
+      Alert.alert("Erro", getErrorMessage(error, "Erro ao buscar parcelamentos."));
     }
   }
+
+  
 
   useEffect(() => {
     buscarParcelamentos();
@@ -124,13 +219,18 @@ const Parcelamentos = () => {
                 }
               );
 
-              await parseResponseSafely(response);
+              const data = await parseResponseSafely<ApiBaseResponse>(response);
+              if (!response.ok) {
+                throw new Error(
+                  extractApiError(data, "Falha ao excluir parcelamento.")
+                );
+              }
 
               setParcelamentos((prev) =>
                 prev.filter((p) => p.id !== Number(id))
               );
-            } catch {
-              Alert.alert("Erro", "Falha ao excluir.");
+            } catch (error: unknown) {
+              Alert.alert("Erro", getErrorMessage(error, "Falha ao excluir."));
             }
           },
         },
@@ -156,17 +256,18 @@ const Parcelamentos = () => {
         }
       );
 
-      const data = await parseResponseSafely(response);
+      const data = await parseResponseSafely<ParcelaMutationResponse>(response);
 
       if (!response.ok) {
-        throw new Error(data.error || "Falha ao pagar parcela.");
+        throw new Error(extractApiError(data, "Falha ao pagar parcela."));
       }
 
       const parcelaAtualizada = data.parcela;
       if (parcelaAtualizada) {
+        const parcelaNormalizada = normalizarParcelamento(parcelaAtualizada);
         setParcelamentos((prev) =>
           prev.map((p) =>
-            p.id === parcelaId ? { ...p, ...parcelaAtualizada } : p
+            p.id === parcelaId ? { ...p, ...parcelaNormalizada } : p
           )
         );
       } else {
@@ -174,8 +275,8 @@ const Parcelamentos = () => {
       }
 
       Alert.alert("Sucesso", "Parcela paga com sucesso.");
-    } catch (error: any) {
-      Alert.alert("Erro", error.message);
+    } catch (error: unknown) {
+      Alert.alert("Erro", getErrorMessage(error, "Falha ao pagar parcela."));
     }
   }
 
@@ -256,17 +357,26 @@ const Parcelamentos = () => {
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => {
-              setParcelamentoSelecionado(null);
-              setModalVisible(true);
-            }}>
-            <Feather name="plus" size={18} color="#FFF" />
-            <Text style={styles.addButtonText}>
-              Novo
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.historyButton}
+              onPress={() => router.push("../auth/historico_parcelamentos")}
+            >
+              <Feather name="clock" size={16} color="#2D5F3F" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.addButton}
+              onPress={() => {
+                setParcelamentoSelecionado(null);
+                setModalVisible(true);
+              }}>
+              <Feather name="plus" size={18} color="#FFF" />
+              <Text style={styles.addButtonText}>
+                Novo
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         <ScrollView
@@ -419,7 +529,7 @@ const Parcelamentos = () => {
     setModalVisible(false);
     setParcelamentoSelecionado(null);
   }}
-  onSave={async (payload) => {
+  onSave={async (payload: ParcelamentoPayload) => {
     try {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
       if (!token) throw new Error("Sessao invalida. Faca login novamente.");
@@ -451,16 +561,16 @@ const Parcelamentos = () => {
         body: JSON.stringify(body),
       });
 
-      const data = await parseResponseSafely(response);
+      const data = await parseResponseSafely<ApiBaseResponse>(response);
 
       if (!response.ok)
-        throw new Error(data.error || "Erro ao salvar parcelamento.");
+        throw new Error(extractApiError(data, "Erro ao salvar parcelamento."));
 
       setModalVisible(false);
       setParcelamentoSelecionado(null);
       buscarParcelamentos();
-    } catch (error: any) {
-      Alert.alert("Erro", error.message);
+    } catch (error: unknown) {
+      Alert.alert("Erro", getErrorMessage(error, "Erro ao salvar parcelamento."));
     }
   }}
 />
@@ -503,6 +613,29 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 15,
     marginTop: 4,
+  },
+
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  historyButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#2D5F3F",
+    backgroundColor: "#EEF4EF",
+  },
+
+  historyButtonText: {
+    color: "#2D5F3F",
+    fontWeight: "600",
+    marginLeft: 6,
   },
 
   addButton: {

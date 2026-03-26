@@ -32,11 +32,61 @@ type ContaFixa = {
   ativa: boolean;
 };
 
+type ContaFixaApi = {
+  id: number;
+  nome: string;
+  valor: number | string | null;
+  dia_vencimento: number | string | null;
+  ativa: boolean | null;
+};
+
+type ApiBaseResponse = {
+  message?: string;
+  error?: string;
+};
+
+type ContaFixaMutationResponse = ApiBaseResponse & {
+  conta_fixa?: ContaFixaApi;
+};
+
 const TOKEN_KEY = "auth_token";
 
 function getErrorMessage(error: unknown, fallback = "Erro inesperado.") {
   if (error instanceof Error) return error.message;
   return fallback;
+}
+
+function extractApiErrorMessage(payload: ApiBaseResponse | undefined, fallback: string) {
+  return payload?.error || payload?.message || fallback;
+}
+
+async function parseResponseSafely<T>(response: Response): Promise<T> {
+  const raw = await response.text();
+  const contentType = response.headers.get("content-type") ?? "";
+
+  if (contentType.includes("application/json")) {
+    try {
+      return (raw ? JSON.parse(raw) : {}) as T;
+    } catch {
+      throw new Error("Resposta JSON inválida do servidor.");
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(`Servidor retornou formato inválido (status ${response.status}).`);
+  }
+
+  return {} as T;
+}
+
+function normalizarContaFixa(conta: ContaFixaApi): ContaFixa {
+  return {
+    id: Number(conta.id),
+    nome: conta.nome,
+    valor: Number(conta.valor || 0),
+    dia_vencimento: Number(conta.dia_vencimento || 0),
+    ativa: Boolean(conta.ativa),
+  };
 }
 
 const Contas: React.FC = () => {
@@ -70,12 +120,18 @@ const Contas: React.FC = () => {
         },
       });
 
+      const data = await parseResponseSafely<ContaFixaApi[] | ApiBaseResponse>(response);
+
       if (!response.ok) {
-        throw new Error("Erro ao carregar contas fixas.");
+        throw new Error(
+          extractApiErrorMessage(
+            !Array.isArray(data) ? data : undefined,
+            "Erro ao carregar contas fixas."
+          )
+        );
       }
 
-      const data = await response.json();
-      const contasArray = Array.isArray(data) ? data : [];
+      const contasArray = Array.isArray(data) ? data.map(normalizarContaFixa) : [];
       setContas(ordenarContas(contasArray));
     } catch (error: unknown) {
       Alert.alert("Erro", getErrorMessage(error, "Erro ao carregar contas fixas."));
@@ -111,8 +167,9 @@ const Contas: React.FC = () => {
           body: JSON.stringify(data),
         });
 
+        const payload = await parseResponseSafely<ContaFixaMutationResponse>(response);
         if (!response.ok) {
-          throw new Error("Erro ao editar conta fixa.");
+          throw new Error(extractApiErrorMessage(payload, "Erro ao editar conta fixa."));
         }
       } else {
         const response = await fetch(`${API_URL}/contas-fixas/create`, {
@@ -127,8 +184,9 @@ const Contas: React.FC = () => {
           }),
         });
 
+        const payload = await parseResponseSafely<ContaFixaMutationResponse>(response);
         if (!response.ok) {
-          throw new Error("Erro ao criar conta fixa.");
+          throw new Error(extractApiErrorMessage(payload, "Erro ao criar conta fixa."));
         }
       }
 
@@ -158,8 +216,9 @@ const Contas: React.FC = () => {
         },
       });
 
+      const payload = await parseResponseSafely<ApiBaseResponse>(response);
       if (!response.ok) {
-        throw new Error("Erro ao excluir conta fixa.");
+        throw new Error(extractApiErrorMessage(payload, "Erro ao excluir conta fixa."));
       }
 
       setConfirmVisible(false);
