@@ -1,10 +1,12 @@
 import token
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, app, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from app.extensions import db
 from app.models import ContaFixa, RegistroDiario, Usuario, Parcelamento, HistoricoFatura
 from datetime import date, datetime
-from sqlalchemy import func
+from sqlalchemy import func, text
+import time
+
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -748,3 +750,24 @@ def historico_parcelamentos():
 ############################# HISTÓRICO DE PARCELAMENTOS #################################
 
 ############################# PÁGINA DE PARCELAS #################################
+
+
+
+@auth_bp.route("/health-db")
+def health_db():
+    try:
+        start = time.time()
+        db.session.execute(text("SELECT 1"))
+        latency = round((time.time() - start) * 1000, 2)
+
+        return {
+            "status": "ok",
+            "latency_ms": latency
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e)}, 500
+    
+
+@auth_bp.route("/health")
+def health():
+    return {"status": "ok"}

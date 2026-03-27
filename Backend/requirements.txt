@@ -5,3 +5,5 @@ werkzeug
 Flask-Cors
 requests
 Flask-JWT-Extended
+python-dotenv
+Flask-Migrate
