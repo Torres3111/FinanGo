@@ -162,7 +162,7 @@ export default function Graficos() {
       if (!userId) throw new Error("UserId nao encontrado");
       if (!token) throw new Error("Token nao encontrado");
 
-      const response = await fetch(`${API_URL}/registro/total-gasto-mes/${Number(userId)}/${mes}/${anoAtual}`, {
+      const response = await fetch(`${API_URL}/registro/total-gasto-mes/${mes}/${anoAtual}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -195,7 +195,7 @@ export default function Graficos() {
       if (!userId) throw new Error("UserId nao encontrado");
       if (!token) throw new Error("Token nao encontrado");
 
-      const response = await fetch(`${API_URL}/registro/total-gasto-categoria/${Number(userId)}/${mes}/${anoAtual}`, {
+      const response = await fetch(`${API_URL}/registro/total-gasto-categoria/${mes}/${anoAtual}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -228,9 +228,7 @@ export default function Graficos() {
       if (!userId) throw new Error("UserId nao encontrado");
       if (!token) throw new Error("Token nao encontrado");
 
-      const response = await fetch(`${API_URL}/registro/percentual-gasto-categoria/${Number(
-        userId
-      )}/${mes}/${anoAtual}`, {
+      const response = await fetch(`${API_URL}/registro/percentual-gasto-categoria/${mes}/${anoAtual}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

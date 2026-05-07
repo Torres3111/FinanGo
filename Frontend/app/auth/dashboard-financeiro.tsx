@@ -103,7 +103,7 @@ export default function DashboardFinanceiro() {
 
     if (!response.ok) {
       if (response.status === 404) {
-        throw new Error("Endpoint de parcelamentos/resumo nao encontrado no backend.");
+        throw new Error("Endpoint de dashboard nao encontrado no backend.");
       }
       throw new Error(`Servidor retornou formato invalido (status ${response.status}).`);
     }
@@ -152,8 +152,7 @@ export default function DashboardFinanceiro() {
         const userId = await AsyncStorage.getItem("id");
         const token = await SecureStore.getItemAsync(TOKEN_KEY);
         if (!userId || !token) return;
-
-        const response = await fetch(`${API_URL}/dashboard/salariomensal?user_id=${userId}`, {
+        const response = await fetch(`${API_URL}/dashboard/salariomensal`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -177,7 +176,7 @@ export default function DashboardFinanceiro() {
         const token = await SecureStore.getItemAsync(TOKEN_KEY);
         if (!userId || !token) return;
 
-        const response = await fetch(`${API_URL}/dashboard/somacontasfixas?user_id=${userId}`, {
+        const response = await fetch(`${API_URL}/dashboard/somacontasfixas`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -202,7 +201,7 @@ export default function DashboardFinanceiro() {
         const token = await SecureStore.getItemAsync(TOKEN_KEY);
         if (!userId || !token) return;
 
-        const response = await fetch(`${API_URL}/registro/total-gasto-mes/${userId}/${mes}/${anoAtual}`, {
+        const response = await fetch(`${API_URL}/dashboard/total-gasto-mes-dashboard`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -228,8 +227,7 @@ export default function DashboardFinanceiro() {
         const userId = await AsyncStorage.getItem("id");
         const token = await SecureStore.getItemAsync(TOKEN_KEY);
         if (!userId || !token) return;
-
-        const response = await fetch(`${API_URL}/registro/total-gasto-mes-ano/${userId}/${anoAtual}`, {
+        const response = await fetch(`${API_URL}/registro/total-gasto-mes-ano`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -261,8 +259,7 @@ export default function DashboardFinanceiro() {
       try {
         const token = await SecureStore.getItemAsync(TOKEN_KEY);
         if (!token) return;
-
-        const response = await fetch(`${API_URL}/parcelas/resumo`, {
+               const response = await fetch(`${API_URL}/parcelas/resumo`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

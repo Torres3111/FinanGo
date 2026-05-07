@@ -85,7 +85,7 @@ const GastosDiarios = () => {
       const token = await SecureStore.getItemAsync(TOKEN_KEY);
 
       if (!userId || !token) throw new Error("Sessao invalida. Faca login novamente.");
-      const response = await fetch(`${API_URL}/registro/mostrar/${userId}`, {
+      const response = await fetch(`${API_URL}/registro/mostrar`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

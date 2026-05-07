@@ -5,3 +5,7 @@ werkzeug
 Flask-Cors
 requests
 Flask-JWT-Extended
+pydantic
+pytest
+pytest-flask
+flask-limiter

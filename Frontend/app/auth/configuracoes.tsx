@@ -67,7 +67,7 @@ export default function Configuracoes() {
         return;
       }
 
-      const response = await fetch(`${API_URL}/auth/info?user_id=${userId}`, {
+      const response = await fetch(`${API_URL}/auth/info`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

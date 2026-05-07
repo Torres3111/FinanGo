@@ -114,7 +114,7 @@ const Contas: React.FC = () => {
         return;
       }
 
-      const response = await fetch(`${API_URL}/contas-fixas/minhascontas?user_id=${userId}`, {
+      const response = await fetch(`${API_URL}/contas-fixas/minhascontas`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
